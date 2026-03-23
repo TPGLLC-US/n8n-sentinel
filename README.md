@@ -25,7 +25,7 @@ Monitor workflows, executions, AI token usage, and instance health — all from 
 
 ```bash
 # Clone the repo
-git clone https://github.com/your-org/n8n-sentinel.git
+git clone https://github.com/TPGLLC-US/n8n-sentinel.git
 cd n8n-sentinel
 
 # Install all dependencies
@@ -71,7 +71,10 @@ cp .env.example .env
 | `SENTINEL_ADMIN_EMAIL` | **Yes** | Admin login email (seeded on first startup) |
 | `SENTINEL_ADMIN_PASSWORD` | **Yes** | Admin password, min 12 chars |
 | `DATABASE_URL` | **Yes** | Postgres connection string |
+| `ENCRYPTION_KEY` | **Yes** | Encrypts sensitive settings in DB. Generate: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` |
+| `POSTGRES_PASSWORD` | Docker | Used by `docker-compose.yml` for the DB and connection string |
 | `CORS_ORIGIN` | Prod | Dashboard origin (e.g. `https://sentinel.example.com`). Defaults to `http://localhost:5173` in dev. |
+| `SENTINEL_PUBLIC_URL` | Prod | Public URL for webhook display (e.g. `https://sentinel.example.com`). Falls back to request host. |
 | `ANTHROPIC_API_KEY` | No | Required for AI error diagnosis |
 
 ### 3. Register an n8n Instance
