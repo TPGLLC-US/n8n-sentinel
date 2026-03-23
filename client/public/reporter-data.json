@@ -1,0 +1,216 @@
+{
+    "name": "Sentinel Data Sync",
+    "nodes": [
+        {
+            "parameters": {
+                "rule": {
+                    "interval": [
+                        {
+                            "field": "minutes",
+                            "minutes": 15
+                        }
+                    ]
+                }
+            },
+            "name": "Schedule",
+            "type": "n8n-nodes-base.scheduleTrigger",
+            "typeVersion": 1.1,
+            "position": [
+                250,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "resource": "workflow",
+                "operation": "getAll",
+                "limit": 50,
+                "filters": {
+                    "active": true
+                }
+            },
+            "name": "Get Workflows",
+            "type": "n8n-nodes-base.n8n",
+            "typeVersion": 1,
+            "position": [
+                450,
+                200
+            ],
+            "credentials": {
+                "n8nApi": {
+                    "id": "YOUR_CRED_ID",
+                    "name": "Local n8n API"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "jsCode": "const items = $input.all();\nconst workflows = items.map(item => item.json);\n\n// Aggregate into a single item for merging\nreturn { json: { workflows } };"
+            },
+            "name": "Aggregate Workflows",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                650,
+                200
+            ]
+        },
+        {
+            "parameters": {
+                "resource": "execution",
+                "operation": "getAll",
+                "limit": 50
+            },
+            "name": "Get Executions",
+            "type": "n8n-nodes-base.n8n",
+            "typeVersion": 1,
+            "position": [
+                450,
+                400
+            ],
+            "credentials": {
+                "n8nApi": {
+                    "id": "YOUR_CRED_ID",
+                    "name": "Local n8n API"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "jsCode": "const items = $input.all();\nconst executions = items.map(item => item.json);\n\n// Aggregate into a single item for merging\nreturn { json: { executions } };"
+            },
+            "name": "Aggregate Executions",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                650,
+                400
+            ]
+        },
+        {
+            "parameters": {
+                "mode": "combine",
+                "combineBy": "combineAll"
+            },
+            "name": "Merge Data",
+            "type": "n8n-nodes-base.merge",
+            "typeVersion": 2,
+            "position": [
+                850,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "url": "YOUR_WEBHOOK_URL",
+                "method": "POST",
+                "sendBody": true,
+                "bodyParameters": {
+                    "parameters": [
+                        {
+                            "name": "telemetry_type",
+                            "value": "configuration"
+                        },
+                        {
+                            "name": "timestamp",
+                            "value": "={{ new Date().toISOString() }}"
+                        },
+                        {
+                            "name": "data",
+                            "value": "={{ $json }}"
+                        }
+                    ]
+                },
+                "authentication": "genericCredentialType",
+                "genericAuthType": "httpHeaderAuth",
+                "options": {}
+            },
+            "name": "Send Data",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.1,
+            "position": [
+                1050,
+                300
+            ],
+            "credentials": {
+                "httpHeaderAuth": {
+                    "id": "YOUR_SENTINEL_CRED_ID",
+                    "name": "Sentinel API Key"
+                }
+            }
+        }
+    ],
+    "connections": {
+        "Schedule": {
+            "main": [
+                [
+                    {
+                        "node": "Get Workflows",
+                        "type": "main",
+                        "index": 0
+                    },
+                    {
+                        "node": "Get Executions",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Get Workflows": {
+            "main": [
+                [
+                    {
+                        "node": "Aggregate Workflows",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Aggregate Workflows": {
+            "main": [
+                [
+                    {
+                        "node": "Merge Data",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Get Executions": {
+            "main": [
+                [
+                    {
+                        "node": "Aggregate Executions",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Aggregate Executions": {
+            "main": [
+                [
+                    {
+                        "node": "Merge Data",
+                        "type": "main",
+                        "index": 1
+                    }
+                ]
+            ]
+        },
+        "Merge Data": {
+            "main": [
+                [
+                    {
+                        "node": "Send Data",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    }
+}

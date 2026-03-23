@@ -1,0 +1,17 @@
+{
+    "name": "n8n-sentinel",
+    "version": "1.0.0",
+    "description": "Centralized monitoring dashboard for n8n workflow automation instances",
+    "license": "AGPL-3.0",
+    "keywords": ["n8n", "monitoring", "dashboard", "workflow", "automation"],
+    "scripts": {
+        "dev": "concurrently \"npm run dev --prefix server\" \"npm run dev --prefix client -- --host\"",
+        "build:workflow": "node workflow/build.js",
+        "build": "npm run build:workflow && npm run build --prefix server && npm run build --prefix client",
+        "start": "npm start --prefix server",
+        "install:all": "npm install && npm install --prefix server && npm install --prefix client"
+    },
+    "devDependencies": {
+        "concurrently": "^8.2.2"
+    }
+}

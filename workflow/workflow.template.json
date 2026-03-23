@@ -1,0 +1,398 @@
+{
+  "name": "Sentinel Reporter (Multi-Path)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutes": 5
+            }
+          ]
+        }
+      },
+      "id": "schedule-heartbeat",
+      "name": "Heartbeat (5m)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [200, 200]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hours": 8
+            }
+          ]
+        }
+      },
+      "id": "schedule-executions",
+      "name": "Executions (8h)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [200, 400]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hours": 6
+            }
+          ]
+        }
+      },
+      "id": "schedule-config",
+      "name": "Config (6h)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [200, 600]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "manual-sync",
+        "options": {}
+      },
+      "id": "webhook-manual",
+      "name": "Manual Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [200, 800]
+    },
+    {
+      "parameters": {},
+      "id": "error-trigger",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [200, 1000]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "{{SCRIPT:route-telemetry}}"
+      },
+      "id": "route-telemetry",
+      "name": "Route Telemetry",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [400, 600]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.telemetry_type }}",
+              "operation": "contains",
+              "value2": "configuration"
+            }
+          ]
+        },
+        "combineOperation": "any"
+      },
+      "id": "if-config",
+      "name": "Is Config Sync?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [600, 500]
+    },
+    {
+      "parameters": {
+        "url": "http://127.0.0.1:5678/api/v1/workflows?limit=250",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "n8nApi",
+        "options": {
+          "pagination": {
+            "paginationMode": "updateAParameterInEachRequest",
+            "parameters": {
+              "parameters": [
+                {
+                  "type": "queryParameter",
+                  "name": "cursor",
+                  "value": "={{ $response.body.nextCursor }}"
+                }
+              ]
+            },
+            "paginationCompleteWhen": "other",
+            "completeExpression": "={{ !$response.body.nextCursor }}",
+            "maxRequests": 20
+          }
+        }
+      },
+      "id": "get-workflows",
+      "name": "Get Workflows",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [800, 400],
+      "credentials": {
+        "n8nApi": {
+          "id": "YOUR_CRED_ID",
+          "name": "n8n account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $('Route Telemetry').item.json.telemetry_type }}",
+              "operation": "contains",
+              "value2": "executions"
+            },
+            {
+              "value1": "={{ $('Route Telemetry').item.json.telemetry_type }}",
+              "operation": "contains",
+              "value2": "manual"
+            }
+          ]
+        },
+        "combineOperation": "any"
+      },
+      "id": "if-executions",
+      "name": "Is Executions Sync?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [600, 700]
+    },
+    {
+      "parameters": {
+        "url": "http://127.0.0.1:5678/api/v1/executions?limit=250",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "n8nApi",
+        "options": {
+          "pagination": {
+            "paginationMode": "updateAParameterInEachRequest",
+            "parameters": {
+              "parameters": [
+                {
+                  "type": "queryParameter",
+                  "name": "cursor",
+                  "value": "={{ $response.body.nextCursor }}"
+                }
+              ]
+            },
+            "paginationCompleteWhen": "other",
+            "completeExpression": "={{ !$response.body.nextCursor }}",
+            "maxRequests": 10
+          }
+        }
+      },
+      "id": "get-executions",
+      "name": "Get Executions",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1000, 600],
+      "credentials": {
+        "n8nApi": {
+          "id": "YOUR_CRED_ID",
+          "name": "n8n account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "{{SQL:token-extraction}}"
+      },
+      "id": "get-token-data",
+      "name": "Get Token Data",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1100, 700],
+      "credentials": {
+        "postgres": {
+          "id": "YOUR_N8N_DB_CRED_ID",
+          "name": "n8n Database"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "{{SCRIPT:process-executions}}"
+      },
+      "id": "process-executions",
+      "name": "Process Executions",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1200, 600]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.telemetry_type }}",
+              "operation": "contains",
+              "value2": "heartbeat"
+            }
+          ]
+        },
+        "combineOperation": "any"
+      },
+      "id": "if-heartbeat",
+      "name": "Is Heartbeat?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [600, 900]
+    },
+    {
+      "parameters": {
+        "url": "http://127.0.0.1:5678/rest/settings",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "n8nApi",
+        "options": {}
+      },
+      "id": "get-n8n-settings",
+      "name": "Get n8n Settings",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [800, 900],
+      "credentials": {
+        "n8nApi": {
+          "id": "YOUR_CRED_ID",
+          "name": "n8n account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT 'postgresdb' as database_type, version() as db_version"
+      },
+      "id": "detect-db-type",
+      "name": "Detect DB Type",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [900, 900],
+      "credentials": {
+        "postgres": {
+          "id": "YOUR_N8N_DB_CRED_ID",
+          "name": "n8n Database"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "{{SCRIPT:build-payload}}"
+      },
+      "id": "build-payload",
+      "name": "Build Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1400, 600]
+    },
+    {
+      "parameters": {
+        "action": "hmac",
+        "type": "SHA256",
+        "value": "={{ $json.payloadString }}",
+        "secret": "YOUR_HMAC_SECRET",
+        "encoding": "base64"
+      },
+      "id": "sign-hmac",
+      "name": "Sign HMAC",
+      "type": "n8n-nodes-base.crypto",
+      "typeVersion": 1,
+      "position": [1600, 600]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Build Payload').item.json.url }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Sentinel-Signature",
+              "value": "={{ $json.data }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $('Build Payload').item.json.payloadString }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "send-to-sentinel",
+      "name": "Send to Sentinel",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1800, 600]
+    }
+  ],
+  "connections": {
+    "Heartbeat (5m)": { "main": [[ { "node": "Route Telemetry", "type": "main", "index": 0 } ]] },
+    "Executions (8h)": { "main": [[ { "node": "Route Telemetry", "type": "main", "index": 0 } ]] },
+    "Config (6h)": { "main": [[ { "node": "Route Telemetry", "type": "main", "index": 0 } ]] },
+    "Manual Webhook": { "main": [[ { "node": "Route Telemetry", "type": "main", "index": 0 } ]] },
+    "Error Trigger": { "main": [[ { "node": "Route Telemetry", "type": "main", "index": 0 } ]] },
+    "Route Telemetry": {
+      "main": [[
+        { "node": "Is Config Sync?", "type": "main", "index": 0 },
+        { "node": "Is Executions Sync?", "type": "main", "index": 0 },
+        { "node": "Is Heartbeat?", "type": "main", "index": 0 }
+      ]]
+    },
+    "Is Config Sync?": {
+      "main": [
+        [{ "node": "Get Workflows", "type": "main", "index": 0 }],
+        [{ "node": "Build Payload", "type": "main", "index": 0 }]
+      ]
+    },
+    "Get Workflows": {
+      "main": [[ { "node": "Build Payload", "type": "main", "index": 0 } ]]
+    },
+    "Is Executions Sync?": {
+      "main": [
+        [{ "node": "Get Executions", "type": "main", "index": 0 }],
+        []
+      ]
+    },
+    "Get Executions": {
+      "main": [[ { "node": "Get Token Data", "type": "main", "index": 0 } ]]
+    },
+    "Get Token Data": {
+      "main": [[ { "node": "Process Executions", "type": "main", "index": 0 } ]]
+    },
+    "Process Executions": {
+      "main": [[ { "node": "Build Payload", "type": "main", "index": 0 } ]]
+    },
+    "Is Heartbeat?": {
+      "main": [
+        [{ "node": "Get n8n Settings", "type": "main", "index": 0 }],
+        []
+      ]
+    },
+    "Get n8n Settings": {
+      "main": [[ { "node": "Detect DB Type", "type": "main", "index": 0 } ]]
+    },
+    "Detect DB Type": {
+      "main": [[ { "node": "Build Payload", "type": "main", "index": 0 } ]]
+    },
+    "Build Payload": {
+      "main": [[ { "node": "Sign HMAC", "type": "main", "index": 0 } ]]
+    },
+    "Sign HMAC": {
+      "main": [[ { "node": "Send to Sentinel", "type": "main", "index": 0 } ]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

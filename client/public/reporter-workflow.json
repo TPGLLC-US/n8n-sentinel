@@ -1,0 +1,604 @@
+{
+  "name": "Sentinel Reporter (Multi-Path)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutes": 5
+            }
+          ]
+        }
+      },
+      "id": "schedule-heartbeat",
+      "name": "Heartbeat (5m)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        200,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hours": 8
+            }
+          ]
+        }
+      },
+      "id": "schedule-executions",
+      "name": "Executions (8h)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        200,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hours": 6
+            }
+          ]
+        }
+      },
+      "id": "schedule-config",
+      "name": "Config (6h)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        200,
+        600
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "manual-sync",
+        "options": {}
+      },
+      "id": "webhook-manual",
+      "name": "Manual Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        200,
+        800
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "error-trigger",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        200,
+        1000
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Detect which trigger fired this execution\n// $('NodeName').first() throws if the node wasn't executed in this run\nlet trigger = 'manual';\nlet syncParams = {};\ntry { $('Heartbeat (5m)').first(); trigger = 'heartbeat'; } catch(e) {}\ntry { $('Executions (8h)').first(); trigger = 'executions'; } catch(e) {}\ntry { $('Config (6h)').first(); trigger = 'configuration'; } catch(e) {}\ntry { $('Error Trigger').first(); trigger = 'error'; } catch(e) {}\ntry {\n  const wh = $('Manual Webhook').first();\n  trigger = 'manual';\n  syncParams.timeframe = wh.json.body?.timeframe || '1h';\n  syncParams.level = wh.json.body?.level || 'simple';\n} catch(e) {}\n\nreturn [{ json: { telemetry_type: trigger, syncParams } }];"
+      },
+      "id": "route-telemetry",
+      "name": "Route Telemetry",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        400,
+        600
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.telemetry_type }}",
+              "operation": "contains",
+              "value2": "configuration"
+            }
+          ]
+        },
+        "combineOperation": "any"
+      },
+      "id": "if-config",
+      "name": "Is Config Sync?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        600,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "url": "http://127.0.0.1:5678/api/v1/workflows?limit=250",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "n8nApi",
+        "options": {
+          "pagination": {
+            "paginationMode": "updateAParameterInEachRequest",
+            "parameters": {
+              "parameters": [
+                {
+                  "type": "queryParameter",
+                  "name": "cursor",
+                  "value": "={{ $response.body.nextCursor }}"
+                }
+              ]
+            },
+            "paginationCompleteWhen": "other",
+            "completeExpression": "={{ !$response.body.nextCursor }}",
+            "maxRequests": 20
+          }
+        }
+      },
+      "id": "get-workflows",
+      "name": "Get Workflows",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        800,
+        400
+      ],
+      "credentials": {
+        "n8nApi": {
+          "id": "YOUR_CRED_ID",
+          "name": "n8n account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $('Route Telemetry').item.json.telemetry_type }}",
+              "operation": "contains",
+              "value2": "executions"
+            },
+            {
+              "value1": "={{ $('Route Telemetry').item.json.telemetry_type }}",
+              "operation": "contains",
+              "value2": "manual"
+            }
+          ]
+        },
+        "combineOperation": "any"
+      },
+      "id": "if-executions",
+      "name": "Is Executions Sync?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        600,
+        700
+      ]
+    },
+    {
+      "parameters": {
+        "url": "http://127.0.0.1:5678/api/v1/executions?limit=250",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "n8nApi",
+        "options": {
+          "pagination": {
+            "paginationMode": "updateAParameterInEachRequest",
+            "parameters": {
+              "parameters": [
+                {
+                  "type": "queryParameter",
+                  "name": "cursor",
+                  "value": "={{ $response.body.nextCursor }}"
+                }
+              ]
+            },
+            "paginationCompleteWhen": "other",
+            "completeExpression": "={{ !$response.body.nextCursor }}",
+            "maxRequests": 10
+          }
+        }
+      },
+      "id": "get-executions",
+      "name": "Get Executions",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1000,
+        600
+      ],
+      "credentials": {
+        "n8nApi": {
+          "id": "YOUR_CRED_ID",
+          "name": "n8n account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ `WITH token_execs AS (\n  SELECT e.id as execution_id, e.\"workflowId\" as workflow_id, ed.data::jsonb as jdata\n  FROM execution_entity e\n  JOIN execution_data ed ON ed.\"executionId\" = e.id\n  WHERE e.id IN (${$input.first().json.data ? $input.first().json.data.map(d => d.id).join(',') : '0'})\n    AND ed.data IS NOT NULL\n    AND (\n      ed.data LIKE '%prompt_tokens%'\n      OR ed.data LIKE '%input_tokens%'\n      OR ed.data LIKE '%promptTokens%'\n      OR ed.data LIKE '%promptTokenCount%'\n    )\n    AND length(ed.data) < 50000000\n),\nusage_data AS (\n  SELECT\n    t.execution_id, t.workflow_id,\n    COALESCE(\n      (elem->>'prompt_tokens')::int,\n      (elem->>'input_tokens')::int,\n      (elem->>'promptTokens')::int,\n      (elem->>'promptTokenCount')::int,\n      0\n    ) as tokens_input,\n    COALESCE(\n      (elem->>'completion_tokens')::int,\n      (elem->>'output_tokens')::int,\n      (elem->>'completionTokens')::int,\n      (elem->>'candidatesTokenCount')::int,\n      0\n    ) as tokens_output\n  FROM token_execs t,\n    jsonb_array_elements(t.jdata) AS elems(elem)\n  WHERE jsonb_typeof(elem) = 'object'\n    AND (\n      jsonb_exists(elem, 'prompt_tokens')\n      OR jsonb_exists(elem, 'input_tokens')\n      OR jsonb_exists(elem, 'promptTokens')\n      OR jsonb_exists(elem, 'promptTokenCount')\n    )\n),\nmodel_data AS (\n  SELECT DISTINCT ON (t.execution_id)\n    t.execution_id,\n    CASE\n      WHEN elem->>'model' ~ '^\\\\d+$' THEN t.jdata->>((elem->>'model')::int)\n      ELSE elem->>'model'\n    END as model\n  FROM token_execs t,\n    jsonb_array_elements(t.jdata) AS elems(elem)\n  WHERE jsonb_typeof(elem) = 'object'\n    AND jsonb_exists(elem, 'model')\n  ORDER BY t.execution_id\n)\nSELECT\n  u.execution_id,\n  u.workflow_id,\n  COALESCE(m.model, 'unknown') as model,\n  u.tokens_input,\n  u.tokens_output\nFROM usage_data u\nLEFT JOIN model_data m ON m.execution_id = u.execution_id` }}"
+      },
+      "id": "get-token-data",
+      "name": "Get Token Data",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1100,
+        700
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "YOUR_N8N_DB_CRED_ID",
+          "name": "n8n Database"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Process Executions: Merge HTTP execution metadata + Postgres token data\n// HTTP metadata comes from $('Get Executions'), token data from $input (Get Token Data)\n// Token extraction happens in Postgres via SQL JSON functions — no large data transfer\n\n// 1. Get execution metadata from HTTP response (handles paginated multi-page responses)\nlet executions = [];\ntry {\n  const httpItems = $('Get Executions').all().map(i => i.json);\n  if (httpItems.length === 1 && httpItems[0].data && Array.isArray(httpItems[0].data)) {\n    executions = httpItems[0].data;\n  } else if (httpItems.length > 1 && httpItems[0].data && Array.isArray(httpItems[0].data)) {\n    executions = httpItems.flatMap(r => r.data || []);\n  } else {\n    executions = httpItems;\n  }\n} catch (e) {\n  executions = [];\n}\n\n// 2. Get pre-extracted token data from Postgres (via Get Token Data node)\nconst tokenRows = $input.all().map(i => i.json);\n\n// 3. Group token rows by execution_id\nconst tokensByExec = {};\nfor (const row of tokenRows) {\n  const execId = String(row.execution_id);\n  if (!tokensByExec[execId]) tokensByExec[execId] = [];\n  if ((row.tokens_input || 0) > 0 || (row.tokens_output || 0) > 0) {\n    tokensByExec[execId].push({\n      model: row.model || 'unknown',\n      tokens_input: parseInt(row.tokens_input) || 0,\n      tokens_output: parseInt(row.tokens_output) || 0,\n      node_name: row.node_name || undefined,\n    });\n  }\n}\n\n// 4. Merge: attach token_usage to each execution, pass through error fields\nconst processed = executions.map(exec => {\n  const execId = String(exec.id);\n\n  // Extract error message from n8n's execution object if available\n  const errorMsg = exec.error?.message || exec.error?.description || null;\n\n  return {\n    json: {\n      id: exec.id,\n      workflowId: exec.workflowId,\n      status: exec.status,\n      finished: exec.finished,\n      mode: exec.mode,\n      startedAt: exec.startedAt,\n      stoppedAt: exec.stoppedAt,\n      lastNodeExecuted: exec.lastNodeExecuted || null,\n      error_message: errorMsg,\n      token_usage: tokensByExec[execId] || [],\n    }\n  };\n});\n\nreturn processed;"
+      },
+      "id": "process-executions",
+      "name": "Process Executions",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        600
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.telemetry_type }}",
+              "operation": "contains",
+              "value2": "heartbeat"
+            }
+          ]
+        },
+        "combineOperation": "any"
+      },
+      "id": "if-heartbeat",
+      "name": "Is Heartbeat?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        600,
+        900
+      ]
+    },
+    {
+      "parameters": {
+        "url": "http://127.0.0.1:5678/rest/settings",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "n8nApi",
+        "options": {}
+      },
+      "id": "get-n8n-settings",
+      "name": "Get n8n Settings",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        800,
+        900
+      ],
+      "credentials": {
+        "n8nApi": {
+          "id": "YOUR_CRED_ID",
+          "name": "n8n account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT 'postgresdb' as database_type, version() as db_version"
+      },
+      "id": "detect-db-type",
+      "name": "Detect DB Type",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        900,
+        900
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "YOUR_N8N_DB_CRED_ID",
+          "name": "n8n Database"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const trigger = $('Route Telemetry').first().json.telemetry_type;\n\nconst SENTINEL_URL = 'YOUR_WEBHOOK_URL';\nconst INSTANCE_ID = 'YOUR_INSTANCE_ID';\nconst nonce = Date.now().toString(36) + '-' + Math.random().toString(36).slice(2);\n\n// Helper: unwrap n8n API responses which return { data: [...] }\n// Handles both single-page and paginated (multi-page) responses\nfunction unwrapApiResponse(items) {\n  const raw = items.map(i => i.json);\n  // Single item with a data array (single page or no pagination)\n  if (raw.length === 1 && raw[0].data && Array.isArray(raw[0].data)) {\n    return raw[0].data;\n  }\n  // Multiple items each with a data array (paginated response)\n  if (raw.length > 1 && raw[0].data && Array.isArray(raw[0].data)) {\n    return raw.flatMap(r => r.data || []);\n  }\n  return raw;\n}\n\n// Read real n8n settings (populated on heartbeat path via Get n8n Settings node)\n// Response shape: { data: { versionCli, timezone, ... } }\nlet n8nSettings = {};\ntry {\n  const raw = $('Get n8n Settings').first().json;\n  n8nSettings = raw.data || raw || {};\n} catch(e) {}\n\n// Detect database type via Postgres probe (continueOnFail node)\n// If the probe succeeded, the n8n instance uses Postgres. If it failed, assume unknown/sqlite.\nlet dbType = null;\ntry {\n  const dbProbe = $('Detect DB Type').first().json;\n  if (dbProbe && dbProbe.database_type) dbType = dbProbe.database_type;\n} catch(e) {}\n\nconst payload = {\n  schema_version: '1.0.0',\n  instance_id: INSTANCE_ID,\n  timestamp: new Date().toISOString(),\n  nonce: nonce,\n  reporter_version: '1.4.0',\n  telemetry_type: trigger,\n  instance_metadata: {\n    n8n_version: n8nSettings.versionCli || null,\n    database_type: dbType,\n    instance_url: (() => {\n      try {\n        const cb = n8nSettings.oauthCallbackUrls?.oauth2;\n        if (cb) { const u = new URL(cb); return u.origin; }\n      } catch(e) {}\n      return null;\n    })(),\n    timezone: n8nSettings.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone\n  },\n  data: {}\n};\n\nif (trigger === 'configuration') {\n  try {\n    const wfItems = unwrapApiResponse($('Get Workflows').all());\n    payload.data.workflows = wfItems;\n  } catch (e) {\n    payload.data.workflows = [];\n  }\n} else if (trigger === 'executions' || trigger === 'manual') {\n  try {\n    // Process Executions already unwrapped API response and extracted tokens\n    const execItems = $('Process Executions').all().map(i => i.json);\n    payload.data.executions = execItems;\n  } catch (e) {\n    payload.data.executions = [];\n  }\n} else if (trigger === 'error') {\n  try {\n    const raw = $('Error Trigger').first().json;\n    // n8n Error Trigger shape: { execution: { id, error, lastNodeExecuted, mode, startedAt, stoppedAt }, workflow: { id, name } }\n    const exec = raw.execution || {};\n    const wf = raw.workflow || {};\n    const errObj = exec.error || {};\n    payload.data.error = {\n      id: exec.id,\n      workflowId: wf.id,\n      workflowName: wf.name,\n      status: 'error',\n      startedAt: exec.startedAt || exec.started_at,\n      stoppedAt: exec.stoppedAt || exec.stopped_at,\n      mode: exec.mode,\n      error_message: errObj.message || errObj.description || raw.message || 'Unknown error',\n      error_node: exec.lastNodeExecuted || null,\n    };\n  } catch (e) {\n    payload.data.error = { status: 'error', error_message: 'Error data unavailable' };\n  }\n}\n\nreturn [{\n  json: {\n    url: SENTINEL_URL,\n    payload: payload,\n    payloadString: JSON.stringify(payload)\n  }\n}];"
+      },
+      "id": "build-payload",
+      "name": "Build Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1400,
+        600
+      ]
+    },
+    {
+      "parameters": {
+        "action": "hmac",
+        "type": "SHA256",
+        "value": "={{ $json.payloadString }}",
+        "secret": "YOUR_HMAC_SECRET",
+        "encoding": "base64"
+      },
+      "id": "sign-hmac",
+      "name": "Sign HMAC",
+      "type": "n8n-nodes-base.crypto",
+      "typeVersion": 1,
+      "position": [
+        1600,
+        600
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Build Payload').item.json.url }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Sentinel-Signature",
+              "value": "={{ $json.data }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $('Build Payload').item.json.payloadString }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "send-to-sentinel",
+      "name": "Send to Sentinel",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1800,
+        600
+      ]
+    }
+  ],
+  "connections": {
+    "Heartbeat (5m)": {
+      "main": [
+        [
+          {
+            "node": "Route Telemetry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Executions (8h)": {
+      "main": [
+        [
+          {
+            "node": "Route Telemetry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config (6h)": {
+      "main": [
+        [
+          {
+            "node": "Route Telemetry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual Webhook": {
+      "main": [
+        [
+          {
+            "node": "Route Telemetry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Route Telemetry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Telemetry": {
+      "main": [
+        [
+          {
+            "node": "Is Config Sync?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Is Executions Sync?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Is Heartbeat?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Config Sync?": {
+      "main": [
+        [
+          {
+            "node": "Get Workflows",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Workflows": {
+      "main": [
+        [
+          {
+            "node": "Build Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Executions Sync?": {
+      "main": [
+        [
+          {
+            "node": "Get Executions",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Get Executions": {
+      "main": [
+        [
+          {
+            "node": "Get Token Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Token Data": {
+      "main": [
+        [
+          {
+            "node": "Process Executions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Executions": {
+      "main": [
+        [
+          {
+            "node": "Build Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Heartbeat?": {
+      "main": [
+        [
+          {
+            "node": "Get n8n Settings",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Get n8n Settings": {
+      "main": [
+        [
+          {
+            "node": "Detect DB Type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Detect DB Type": {
+      "main": [
+        [
+          {
+            "node": "Build Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Payload": {
+      "main": [
+        [
+          {
+            "node": "Sign HMAC",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sign HMAC": {
+      "main": [
+        [
+          {
+            "node": "Send to Sentinel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
