@@ -1,15 +1,19 @@
-version: '3.8'
-
 services:
   sentinel:
     build: .
-    ports:
-      - "3000:3000"
-    env_file: .env
     environment:
-      - NODE_ENV=production
-      - PORT=3000
-      - DATABASE_URL=postgres://sentinel:${POSTGRES_PASSWORD}@db:5432/sentinel
+      - NODE_ENV=${NODE_ENV:-production}
+      - PORT=${PORT:-3000}
+      - DATABASE_URL=postgres://sentinel:${POSTGRES_PASSWORD:-sentinel}@db:5432/sentinel
+      - SESSION_SECRET=${SESSION_SECRET:?SESSION_SECRET is required — see .env.example}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY:?ENCRYPTION_KEY is required — see .env.example}
+      - SENTINEL_ADMIN_EMAIL=${SENTINEL_ADMIN_EMAIL:?SENTINEL_ADMIN_EMAIL is required — see .env.example}
+      - SENTINEL_ADMIN_PASSWORD=${SENTINEL_ADMIN_PASSWORD:?SENTINEL_ADMIN_PASSWORD is required — see .env.example}
+      - CORS_ORIGIN=${CORS_ORIGIN:-}
+      - SENTINEL_PUBLIC_URL=${SENTINEL_PUBLIC_URL:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+    ports:
+      - "${PORT:-3000}:${PORT:-3000}"
     depends_on:
       db:
         condition: service_healthy
@@ -19,14 +23,10 @@ services:
     image: postgres:15-alpine
     environment:
       POSTGRES_USER: sentinel
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-sentinel}
       POSTGRES_DB: sentinel
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      # Initialize DB schema on first run
-      - ./dbschema.sql:/docker-entrypoint-initdb.d/init.sql
-    ports:
-      - "5432:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U sentinel"]
       interval: 5s
