@@ -1,4 +1,4 @@
-const { default: migrate } = require('node-pg-migrate');
+const { runner } = require('node-pg-migrate');
 const path = require('path');
 
 const databaseUrl = process.env.DATABASE_URL;
@@ -9,7 +9,7 @@ if (!databaseUrl) {
 
 console.log('[migrations] Running database migrations...');
 
-migrate({
+runner({
   databaseUrl,
   dir: path.join(__dirname, 'migrations'),
   direction: 'up',
