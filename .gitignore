@@ -37,3 +37,6 @@ coverage/
 
 # Worktrees
 .worktrees/
+
+# Claude Code
+CLAUDE.md
