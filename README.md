@@ -45,16 +45,43 @@ npm run dev
 - **Dashboard:** http://localhost:5173
 - **API:** http://localhost:3000
 
+## Docker Deployment
+
+Deploy the full stack (app + PostgreSQL) with a single command:
+
+```bash
+# Copy and configure environment
+cp .env.example .env
+# Edit .env — set SESSION_SECRET, ENCRYPTION_KEY, SENTINEL_ADMIN_EMAIL,
+# SENTINEL_ADMIN_PASSWORD, and POSTGRES_PASSWORD at minimum
+
+# Start everything
+docker compose up -d
+```
+
+The app runs at `http://localhost:3000` (or your configured PORT).
+
+**What happens on startup:**
+1. Validates required environment variables
+2. Waits for PostgreSQL to be ready
+3. Runs database migrations automatically
+4. Starts the Express server serving both API and dashboard
+
+**For Coolify / Portainer / other platforms:**
+Point the deployment at this repo. Set environment variables in the platform UI. The `docker-compose.yml` uses `${VAR}` interpolation that works with any platform's env var injection.
+
 ## Setup
 
 ### 1. Database
 
+The database schema is managed by migrations that run automatically on startup (both Docker and manual). For manual development:
+
 ```bash
-# Using Docker
+# Start Postgres via Docker
 docker compose up -d db
 
-# Schema is auto-applied via docker-entrypoint-initdb.d
-# Or manually: psql -U sentinel -d sentinel -f dbschema.sql
+# Run migrations
+cd server && DATABASE_URL=postgres://sentinel:sentinel@localhost:5432/sentinel node migrate.js
 ```
 
 ### 2. Environment Variables
