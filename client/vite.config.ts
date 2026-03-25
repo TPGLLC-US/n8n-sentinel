@@ -7,12 +7,12 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'http://localhost:3000',
+        target: 'http://localhost:3786',
         changeOrigin: true,
       },
       // Per-instance ingest paths: /<accountToken>/<instanceToken>/ingest
       '^/[a-zA-Z0-9_-]+/[a-zA-Z0-9_-]+/ingest': {
-        target: 'http://localhost:3000',
+        target: 'http://localhost:3786',
         changeOrigin: true,
       },
     },

@@ -48,12 +48,14 @@ export const login = async (req: Request, res: Response) => {
     try {
         const result = await query('SELECT id, email, password_hash FROM users WHERE email = $1', [email]);
         if (result.rows.length === 0) {
+            console.warn(`[auth] Login failed: no user found for email="${email}"`);
             return res.status(401).json({ error: 'Invalid credentials' });
         }
 
         const user = result.rows[0];
         const valid = await verifyPassword(password, user.password_hash);
         if (!valid) {
+            console.warn(`[auth] Login failed: wrong password for email="${email}" (hash starts with ${user.password_hash.substring(0, 7)})`);
             return res.status(401).json({ error: 'Invalid credentials' });
         }
 

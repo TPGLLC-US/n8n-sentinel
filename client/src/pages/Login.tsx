@@ -32,7 +32,7 @@ export default function Login() {
 
             <div className="mb-8 text-center relative z-10">
                 <img src="/logo.svg" alt="n8n Sentinel" className="h-12 mx-auto mb-2" />
-                <p className="text-sm text-muted-foreground">Monitoring Dashboard</p>
+                <p className="text-sm text-muted-foreground">Multi Instance Observability</p>
             </div>
 
             <div className="bg-card rounded-lg border border-border w-full max-w-sm overflow-hidden relative z-10">
