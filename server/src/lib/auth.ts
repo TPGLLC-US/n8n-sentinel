@@ -6,25 +6,21 @@ import { query } from '../db';
 // ─── Startup Validation ─────────────────────────────────────────────────
 
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
-const DEV_SESSION_SECRET = 'dev-only-secret-do-not-use-in-production-min32chars!!';
 
-function getRequiredEnv(name: string, devDefault?: string): string {
+function getRequiredEnv(name: string): string {
     const val = process.env[name];
     if (!val) {
-        if (!IS_PRODUCTION && devDefault) {
-            console.warn(`[auth] ${name} not set — using dev default (NOT safe for production)`);
-            return devDefault;
-        }
         console.error(`FATAL: Required environment variable ${name} is not set.`);
+        console.error('Copy .env.example to .env and configure your environment.');
         process.exit(1);
     }
     return val;
 }
 
 export function getSessionSecret(): string {
-    const secret = getRequiredEnv('SESSION_SECRET', DEV_SESSION_SECRET);
-    if (IS_PRODUCTION && (secret === DEV_SESSION_SECRET || secret.length < 32)) {
-        console.error('FATAL: SESSION_SECRET must be at least 32 characters and not the default value.');
+    const secret = getRequiredEnv('SESSION_SECRET');
+    if (secret.length < 32) {
+        console.error('FATAL: SESSION_SECRET must be at least 32 characters.');
         process.exit(1);
     }
     return secret;
@@ -45,8 +41,8 @@ export async function verifyPassword(password: string, hash: string): Promise<bo
 // ─── User Seeding ───────────────────────────────────────────────────────
 
 export async function seedAdminUser(): Promise<void> {
-    const email = getRequiredEnv('SENTINEL_ADMIN_EMAIL', 'admin@sentinel.local');
-    const password = getRequiredEnv('SENTINEL_ADMIN_PASSWORD', 'admin1234admin');
+    const email = getRequiredEnv('SENTINEL_ADMIN_EMAIL');
+    const password = getRequiredEnv('SENTINEL_ADMIN_PASSWORD');
 
     if (IS_PRODUCTION && password.length < 12) {
         console.error('FATAL: SENTINEL_ADMIN_PASSWORD must be at least 12 characters.');
