@@ -2,12 +2,13 @@ import express, { Express, Request, Response } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
+import path from 'path';
 import { checkDatabaseHealth } from './db';
 import { getSessionSecret, seedAdminUser } from './lib/auth';
 import { loginLimiter } from './middleware/rate-limit';
 
 dotenv.config(); // try CWD/.env
-dotenv.config({ path: require('path').resolve(process.cwd(), '..', '.env') }); // fallback: monorepo root
+dotenv.config({ path: path.resolve(process.cwd(), '..', '.env') }); // fallback: monorepo root
 
 // ─── Startup validation ─────────────────────────────────────────────────
 // getSessionSecret() exits the process if SESSION_SECRET is missing or default
@@ -106,11 +107,7 @@ app.use('/api/settings', requireAuth, settingsRouter);
 app.use('/api/errors', requireAuth, errorsRouter);
 app.use('/api/reports', requireAuth, reportsRouter);
 
-import path from 'path';
-
-// ... (other imports)
-
-// API routes first
+// API routes — static files in production, dev message otherwise
 app.get('/', (req: Request, res: Response) => {
     if (process.env.NODE_ENV === 'production') {
         res.sendFile(path.join(__dirname, '../public/index.html'));

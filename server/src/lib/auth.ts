@@ -53,19 +53,17 @@ export async function seedAdminUser(): Promise<void> {
         process.exit(1);
     }
 
-    // Check if user already exists
-    const existing = await query('SELECT id FROM users WHERE email = $1', [email]);
-    if (existing.rows.length > 0) {
-        console.log(`[auth] Admin user ${email} already exists, skipping seed.`);
-        return;
-    }
-
     const passwordHash = await hashPassword(password);
-    await query(
-        'INSERT INTO users (email, password_hash) VALUES ($1, $2)',
+
+    // Upsert: create user or update password if email already exists
+    const result = await query(
+        `INSERT INTO users (email, password_hash) VALUES ($1, $2)
+         ON CONFLICT (email) DO UPDATE SET password_hash = $2
+         RETURNING (xmax = 0) AS inserted`,
         [email, passwordHash]
     );
-    console.log(`[auth] Admin user ${email} created.`);
+    const wasInserted = result.rows[0]?.inserted;
+    console.log(`[auth] Admin user ${email} ${wasInserted ? 'created' : 'password updated'}.`);
 }
 
 // ─── JWT Tokens ─────────────────────────────────────────────────────────
