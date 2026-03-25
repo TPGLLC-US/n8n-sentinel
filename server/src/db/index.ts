@@ -1,7 +1,9 @@
 import { Pool } from 'pg';
 import dotenv from 'dotenv';
+import path from 'path';
 
-dotenv.config();
+dotenv.config(); // try CWD/.env
+dotenv.config({ path: path.resolve(process.cwd(), '..', '.env') }); // fallback: monorepo root
 
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 const DEV_DATABASE_URL = 'postgres://sentinel:password@localhost:5432/sentinel';
