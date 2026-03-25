@@ -1,39 +1,53 @@
-# Stage 1: Build the React Application
+# Stage 1: Build the reporter workflow JSON
+FROM node:20-alpine AS workflow-builder
+WORKDIR /app
+COPY package*.json ./
+COPY workflow/ ./workflow/
+RUN npm ci --ignore-scripts
+RUN npm run build:workflow
+
+# Stage 2: Build the React client
 FROM node:20-alpine AS client-builder
 WORKDIR /app/client
 COPY client/package*.json ./
 RUN npm ci
 COPY client/ ./
+COPY --from=workflow-builder /app/client/public/reporter-workflow.json ./public/reporter-workflow.json
 RUN npm run build
 
-# Stage 2: Build the Server and Final Image
-FROM node:20-alpine
-WORKDIR /app
-
-# Copy server dependencies and install
-COPY server/package*.json ./server/
+# Stage 3: Build the server (TypeScript)
+FROM node:20-alpine AS server-builder
 WORKDIR /app/server
-RUN npm ci --production
-
-# Copy server source code
+COPY server/package*.json ./
+RUN npm ci
 COPY server/ ./
-
-# Build server (TypeScript)
-RUN npm install -g typescript
 RUN npm run build
 
-# Remove source and keep only dist/node_modules
-# (Optional optimization, but for now we keep it simple)
+# Stage 4: Production image
+FROM node:20-alpine
+WORKDIR /app/server
 
-# Copy built client assets to server's public directory
-# Ensure server is configured to serve static files if needed, 
-# OR we rely on a reverse proxy. 
-# For this V1 monorepo, let's copy client build to a 'public' folder in server
-# and serve it via Express.
+# Install production dependencies only
+COPY server/package*.json ./
+RUN npm ci --omit=dev
+
+# Copy compiled server from builder
+COPY --from=server-builder /app/server/dist ./dist
+
+# Copy migration files
+COPY server/migrate.js ./migrate.js
+COPY server/migrations ./migrations
+
+# Copy built client to public directory
 COPY --from=client-builder /app/client/dist ./public
 
-# Expose port
+# Copy entrypoint
+COPY docker-entrypoint.sh /app/server/docker-entrypoint.sh
+RUN chmod +x /app/server/docker-entrypoint.sh
+
 EXPOSE 3000
 
-# Start command
-CMD ["node", "dist/index.js"]
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+  CMD wget --spider -q http://localhost:3000/health || exit 1
+
+ENTRYPOINT ["./docker-entrypoint.sh"]
