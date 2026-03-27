@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-    Search, ExternalLink, ChevronDown, ChevronUp, ChevronsUpDown,
-    ChevronLeft, ChevronRight, XCircle, Zap, Bot, TrendingUp, Filter, Loader2,
+    AlertTriangle, Search, ExternalLink, ChevronDown, ChevronUp, ChevronsUpDown,
+    ChevronLeft, ChevronRight, XCircle, Zap, Bot, TrendingUp, Filter, Loader2, CheckCircle2,
     Stethoscope, Eye, ShieldAlert, Coins, ThumbsUp, ThumbsDown, X, RefreshCw,
 } from 'lucide-react';
 import { authFetch } from '../lib/auth';
@@ -470,6 +470,27 @@ const CATEGORY_LABELS: Record<string, string> = {
     unknown: 'Unknown',
 };
 
+/** Hook: cycle through step labels while an async action is running */
+function useProgressSteps(steps: string[], intervalMs = 4000): [string, () => void, () => void] {
+    const [index, setIndex] = useState(0);
+    const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+    const start = useCallback(() => {
+        setIndex(0);
+        timerRef.current = setInterval(() => {
+            setIndex(prev => prev < steps.length - 1 ? prev + 1 : prev);
+        }, intervalMs);
+    }, [steps.length, intervalMs]);
+    const stop = useCallback(() => {
+        if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+        setIndex(0);
+    }, []);
+    useEffect(() => () => { if (timerRef.current) clearInterval(timerRef.current); }, []);
+    return [steps[index], start, stop];
+}
+
+const DIAGNOSE_STEPS = ['Fetching workflow...', 'Analyzing error...', 'Inspecting nodes...', 'Building diagnosis...', 'Finalizing...'];
+const FIX_STEPS = ['Loading diagnosis...', 'Fetching workflow...', 'Inspecting nodes...', 'Generating fix...', 'Applying fix...'];
+
 function DiagnosisPanel({ diagnosis, errorId, initialRating }: { diagnosis: ErrorRow['ai_diagnosis']; errorId: string; initialRating?: 'up' | 'down' | null }) {
     const [feedbackSent, setFeedbackSent] = useState<'up' | 'down' | null>(initialRating ?? null);
     const [showCommentModal, setShowCommentModal] = useState(false);
@@ -623,6 +644,10 @@ function ExpandedError({ error, onDiagnosisUpdate, onErrorUpdate }: { error: Err
     const [diagError, setDiagError] = useState<string | null>(null);
     const [enriching, setEnriching] = useState(false);
     const [enrichReason, setEnrichReason] = useState<string | null>(null);
+    const [fixing, setFixing] = useState(false);
+    const [fixResult, setFixResult] = useState<{ status: string; diagnosis: string; fixDescription: string | null; error?: string; token_usage?: { input_tokens: number; output_tokens: number } } | null>(null);
+    const [diagStep, startDiagSteps, stopDiagSteps] = useProgressSteps(DIAGNOSE_STEPS);
+    const [fixStep, startFixSteps, stopFixSteps] = useProgressSteps(FIX_STEPS);
 
     // Auto-enrich: if error_message or error_node is missing, fetch from n8n
     useEffect(() => {
@@ -659,6 +684,7 @@ function ExpandedError({ error, onDiagnosisUpdate, onErrorUpdate }: { error: Err
     const handleDiagnose = async (mode: 'simple' | 'complex', force = false) => {
         setDiagnosing(mode);
         setDiagError(null);
+        if (mode === 'complex') startDiagSteps();
         try {
             const res = await authFetch(`/errors/${error.id}/diagnose`, {
                 method: 'POST',
@@ -674,7 +700,29 @@ function ExpandedError({ error, onDiagnosisUpdate, onErrorUpdate }: { error: Err
         } catch (err: any) {
             setDiagError(err.message);
         } finally {
+            if (mode === 'complex') stopDiagSteps();
             setDiagnosing(null);
+        }
+    };
+
+    const handleFix = async () => {
+        setFixing(true);
+        setFixResult(null);
+        startFixSteps();
+        try {
+            const res = await authFetch(`/errors/${error.id}/fix`, { method: 'POST' });
+            const data = await res.json();
+            if (!res.ok) {
+                setFixResult({ status: 'failed', diagnosis: '', fixDescription: null, error: data.error || 'Fix failed' });
+            } else {
+                setFixResult(data);
+                onErrorUpdate(error.id, { ai_fix_status: data.status });
+            }
+        } catch (err: any) {
+            setFixResult({ status: 'failed', diagnosis: '', fixDescription: null, error: err.message });
+        } finally {
+            stopFixSteps();
+            setFixing(false);
         }
     };
 
@@ -735,7 +783,33 @@ function ExpandedError({ error, onDiagnosisUpdate, onErrorUpdate }: { error: Err
                 </div>
             )}
 
-            {/* AI Fix Result — disabled, see feat/fix-with-ai branch */}
+            {/* AI Fix Result */}
+            {fixResult && (
+                <div className={`rounded-lg p-3 text-xs border ${
+                    fixResult.status === 'success' ? 'bg-emerald-500/5 border-emerald-500/10 text-emerald-400' :
+                    fixResult.status === 'rejected' ? 'bg-amber-500/5 border-amber-500/10 text-amber-400' :
+                    'bg-red-500/5 border-red-500/10 text-red-400'
+                }`}>
+                    <div className="flex items-center gap-1.5 font-medium mb-1">
+                        {fixResult.status === 'success' ? <CheckCircle2 size={12} /> :
+                         fixResult.status === 'rejected' ? <AlertTriangle size={12} /> :
+                         <XCircle size={12} />}
+                        {fixResult.status === 'success' ? 'Fix Applied Successfully' :
+                         fixResult.status === 'rejected' ? 'Not Fixable via AI' :
+                         'Fix Failed'}
+                    </div>
+                    {fixResult.error && <div className="text-red-400/80">{fixResult.error}</div>}
+                    {fixResult.diagnosis && <div className="mt-1 opacity-80">{fixResult.diagnosis}</div>}
+                    {fixResult.fixDescription && <div className="mt-1 opacity-60">{fixResult.fixDescription}</div>}
+                    {fixResult.token_usage && (
+                        <div className="flex items-center gap-3 mt-2 pt-2 border-t border-border text-[10px] text-muted-foreground">
+                            <Coins size={10} />
+                            <span>Input: <span className="font-mono">{fixResult.token_usage.input_tokens.toLocaleString()}</span></span>
+                            <span>Output: <span className="font-mono">{fixResult.token_usage.output_tokens.toLocaleString()}</span></span>
+                        </div>
+                    )}
+                </div>
+            )}
 
             <div className="flex items-center gap-2 pt-2 border-t border-border">
                 {n8nExecutionUrl && (
@@ -776,7 +850,7 @@ function ExpandedError({ error, onDiagnosisUpdate, onErrorUpdate }: { error: Err
                             className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md border transition-colors duration-150 disabled:cursor-wait ${diagnosing === 'complex' ? 'bg-blue-500 text-white border-blue-500' : 'bg-blue-500/10 text-blue-400 border-blue-500/20 hover:bg-blue-500/20 disabled:opacity-50'}`}
                         >
                             {diagnosing === 'complex' ? <Loader2 size={12} className="animate-spin" /> : <Zap size={12} />}
-                            {diagnosing === 'complex' ? 'Deep Diagnosing...' : 'Deep Diagnose'}
+                            {diagnosing === 'complex' ? diagStep : 'Deep Diagnose'}
                         </button>
                     </>
                 ) : (
@@ -797,9 +871,26 @@ function ExpandedError({ error, onDiagnosisUpdate, onErrorUpdate }: { error: Err
                             className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md border transition-colors duration-150 disabled:cursor-wait ${diagnosing === 'complex' ? 'bg-blue-500 text-white border-blue-500' : 'bg-blue-500/10 text-blue-400/60 border-blue-500/10 hover:border-blue-500/20 hover:text-blue-400 hover:bg-blue-500/20 disabled:opacity-50'}`}
                         >
                             {diagnosing === 'complex' ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={11} />}
-                            {diagnosing === 'complex' ? 'Deep Re-diagnosing...' : 'Re-run Deep'}
+                            {diagnosing === 'complex' ? diagStep : 'Re-run Deep'}
                         </button>
                     </>
+                )}
+                {error.ai_diagnosis?.fixable !== false && (
+                    <button
+                        onClick={handleFix}
+                        disabled={fixing || !error.ai_diagnosis}
+                        title={error.ai_diagnosis ? 'Agentic fix: uses diagnosis to target specific nodes (2-5 turns)' : 'Run diagnosis first — AI Fix requires a prior diagnosis'}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md border transition-colors duration-150 disabled:opacity-50 ${
+                            fixing
+                                ? 'bg-primary text-white border-primary disabled:cursor-wait disabled:opacity-100'
+                                : error.ai_diagnosis
+                                    ? 'bg-primary/10 text-primary border-primary/20 hover:bg-primary/20 disabled:cursor-wait'
+                                    : 'bg-secondary text-muted-foreground border-border cursor-not-allowed'
+                        }`}
+                    >
+                        {fixing ? <Loader2 size={12} className="animate-spin" /> : <Bot size={12} />}
+                        {fixing ? fixStep : error.ai_diagnosis ? 'Fix with AI' : 'Run Diagnosis First'}
+                    </button>
                 )}
             </div>
         </div>

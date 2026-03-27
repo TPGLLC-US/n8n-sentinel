@@ -72,7 +72,7 @@ Open `http://localhost:3000` in your browser. Create your admin account, registe
 ### AI-Powered Diagnosis
 - **AI Error Diagnosis** — One-click Claude-powered analysis of workflow failures with root cause identification and fix suggestions (bring your own Anthropic API key)
 - **Deep Agentic Diagnosis** — Multi-turn AI investigation that iteratively analyzes complex failures using tool-use loops for deeper root cause analysis
-- **AI Auto-Fix** — Automated workflow repair suggestions that propose concrete JSON patches to resolve common failure patterns
+- **AI Auto-Fix** — Agentic multi-turn workflow repair that inspects specific nodes, validates changes, and applies targeted fixes directly to your n8n instance
 - **Error Enrichment** — Automatic backfill of missing error details from the n8n API for richer diagnosis context
 - **Diagnosis Feedback** — Thumbs up/down tracking on AI diagnoses to improve quality over time
 
@@ -140,9 +140,13 @@ Open `http://localhost:3000` in your browser. Create your admin account, registe
 |:---:|:---:|:---:|
 | ![Dashboard](docs/images/n8n-sentinel-dashboard.png) | ![Diagnosis](docs/images/n8n-sentinel-error-dashbaord-with-ai-diagnose.png) | ![Tokens](docs/images/n8n-sentinel-token-usage-charts.png) |
 
-| Workflow Browser | Alerts | Resource Inventory |
+| Fix with AI | Workflow Browser | Alerts |
 |:---:|:---:|:---:|
-| ![Workflows](docs/images/n8n-sentinel-Workflows.png) | ![Alerts](docs/images/n8n-sentinel-Alerts.png) | ![Resources](docs/images/n8n-sentinel-resources.png) |
+| ![Fix with AI](docs/images/n8n-sentinel-error-fix-with-ai.png) | ![Workflows](docs/images/n8n-sentinel-Workflows.png) | ![Alerts](docs/images/n8n-sentinel-Alerts.png) |
+
+| Resource Inventory | | |
+|:---:|:---:|:---:|
+| ![Resources](docs/images/n8n-sentinel-resources.png) | | |
 
 ## Philosophy
 

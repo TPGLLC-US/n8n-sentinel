@@ -9,7 +9,9 @@ import {
     getWorkflowMap,
     estimateTokens,
     extractNodeResultsFromExecution,
+    replaceNodesInWorkflow,
     sanitizeWorkflowForAI,
+    validateFixedNodes,
 } from './workflow-utils';
 
 export interface TokenUsage {
@@ -184,15 +186,24 @@ async function fetchWorkflowFromN8n(baseUrl: string, apiKey: string, workflowRem
     return res.json();
 }
 
-async function applyFixToN8n(baseUrl: string, apiKey: string, workflowRemoteId: string, updatedNodes: any[]): Promise<void> {
+const N8N_WORKFLOW_PUT_FIELDS = ['name', 'nodes', 'connections', 'settings', 'staticData'] as const;
+
+async function applyFixToN8n(baseUrl: string, apiKey: string, workflowRemoteId: string, fullWorkflowJson: any): Promise<void> {
     const url = `${baseUrl}/api/v1/workflows/${workflowRemoteId}`;
+    // n8n public API uses PUT (full replacement) — only send accepted fields (allowlist)
+    const payload: Record<string, any> = {};
+    for (const key of N8N_WORKFLOW_PUT_FIELDS) {
+        if (key in fullWorkflowJson) {
+            payload[key] = fullWorkflowJson[key];
+        }
+    }
     const res = await safeFetch(url, {
-        method: 'PATCH',
+        method: 'PUT',
         headers: {
             'X-N8N-API-KEY': apiKey,
             'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ nodes: updatedNodes }),
+        body: JSON.stringify(payload),
     }, { timeoutMs: 15000, allowHttp: process.env.NODE_ENV !== 'production' });
     if (!res.ok) {
         const body = await res.text().catch(() => '');
@@ -652,50 +663,116 @@ export async function complexDiagnoseError(executionId: string, force = false): 
     return result;
 }
 
-// ─── Fix Service (heavy — fetches workflow, applies changes) ──────────────
+// ─── Agentic Fix Service ──────────────────────────────────────────────────
 
-const FIX_SYSTEM_PROMPT = `You are an expert n8n workflow debugger and fixer. You receive a failed workflow's full JSON and the error details. Your job is to diagnose the issue AND apply a fix.
+const FIX_AGENT_PROMPT = `You are an expert n8n workflow fixer. A diagnosis has already been performed — your job is to apply a targeted fix.
 
 ${N8N_KNOWLEDGE_BASE}
 
-Your task:
-1. Diagnose WHY the workflow failed based on the error message and node configuration
-2. If fixable by modifying node parameters, provide the COMPLETE updated nodes array with your fix applied
-3. If NOT fixable by changing node config (credentials, API outages, rate limits, network), say so clearly
+You have been given:
+- Error metadata (workflow name, failed node, error message)
+- The prior AI diagnosis (root cause, resolution steps, fixability assessment)
+- A workflow map showing all nodes, their types, and connections
 
-Response format (JSON only, no markdown code fences):
+You have tools to request:
+- Specific node configurations (JSON) via get_nodes
+- Connected nodes (upstream/downstream) via get_connected_nodes
+- The full workflow JSON (expensive — use only if needed) via get_full_workflow
+
+And tools to validate and submit your fix:
+- validate_fix: Check your proposed changes BEFORE submitting (catches missing credentials, bad references, etc.)
+- submit_fix: Submit the final fix (auto-validates — will reject if errors found)
+
+STRATEGY:
+1. Use the diagnosis to identify which node(s) need modification — DO NOT re-diagnose
+2. Request ONLY the node(s) you need to fix via get_nodes (typically 1-3 nodes)
+3. If you need to understand data flow, request connected nodes
+4. DO NOT request the full workflow unless absolutely necessary
+5. Apply minimal, targeted changes. Preserve ALL credentials, IDs, and positions exactly as they are.
+6. Call validate_fix with your proposed changes, then submit_fix if validation passes.
+7. You MUST call submit_fix within your first 4-5 tool calls. Do not over-investigate.
+8. If you determine the error CANNOT be fixed by modifying node JSON (e.g., it's an execution-path issue, missing credentials, or external service error), respond with the error JSON immediately — do NOT waste turns inspecting nodes
+
+AFTER calling submit_fix, produce a final text response (JSON, no tool calls):
 {
-  "diagnosis": "Clear explanation of what went wrong and why",
-  "fixable": true/false,
-  "fix_description": "What you changed and why (null if not fixable)",
-  "fixed_nodes": [...updated nodes array...] or null if not fixable
+  "fix_description": "What you changed and why",
+  "nodes_modified": ["node name 1", "node name 2"]
+}
+
+If you determine the fix cannot be applied, return:
+{
+  "fix_description": null,
+  "error": "Why the fix could not be applied"
 }
 
 IMPORTANT:
-- Return ONLY valid JSON, no markdown code fences
-- The fixed_nodes must be the COMPLETE nodes array with modifications applied
-- Do NOT change node IDs, names, or positions unless necessary for the fix
-- Only modify the specific node(s) that caused the error
+- Return ONLY valid JSON as your final response
 - Preserve all credentials references exactly as they are
+- Do NOT change node IDs, names, or positions unless necessary for the fix
 - For Code nodes: ensure return format is [{json: {...}}], add null checks, fix syntax
 - For expression errors: fix brackets, .body access, node name casing, property paths
 - For missing fields: add required fields with sensible defaults`;
 
-async function callAnthropicForFix(apiKey: string, errorContext: string, workflowJson: any): Promise<{ diagnosis: string; fixedNodes: any[] | null; token_usage: TokenUsage }> {
-    const userMessage = `WORKFLOW ERROR DETAILS:\n${errorContext}\n\nFULL WORKFLOW JSON:\n${JSON.stringify(workflowJson, null, 2)}`;
-
-    const { text, token_usage } = await callAnthropicApi(apiKey, FIX_SYSTEM_PROMPT, userMessage, 8192, 120000);
-
-    const parsed = parseAiJsonResponse(text);
-    if (!parsed) {
-        return { diagnosis: text || 'AI response could not be parsed', fixedNodes: null, token_usage };
-    }
-
-    return {
-        diagnosis: parsed.diagnosis || 'No diagnosis provided',
-        fixedNodes: parsed.fixable && parsed.fixed_nodes ? parsed.fixed_nodes : null,
-        token_usage,
-    };
+/** Tool definitions for fix agent (shared tools + submit_fix) */
+function getFixTools(nodeCount: number, estTokens: number): AgentTool[] {
+    return [
+        {
+            name: 'get_nodes',
+            description: 'Get the full JSON configuration of specific workflow nodes by name. Returns parameters, expressions, credentials references, and all settings.',
+            input_schema: {
+                type: 'object',
+                properties: {
+                    node_names: { type: 'array', items: { type: 'string' }, description: 'Node names to retrieve' },
+                },
+                required: ['node_names'],
+            },
+        },
+        {
+            name: 'get_connected_nodes',
+            description: 'Get names of nodes connected to a specific node. Use to trace data flow upstream (inputs) or downstream (outputs).',
+            input_schema: {
+                type: 'object',
+                properties: {
+                    node_name: { type: 'string', description: 'Node name to find connections for' },
+                    direction: { type: 'string', enum: ['upstream', 'downstream', 'both'], description: 'Direction to search (default: both)' },
+                    hops: { type: 'integer', minimum: 1, maximum: 5, description: 'Number of hops to traverse (default: 1)' },
+                },
+                required: ['node_name'],
+            },
+        },
+        {
+            name: 'get_full_workflow',
+            description: `Get the entire workflow JSON. EXPENSIVE — only use if you cannot fix with targeted node requests. The workflow has ${nodeCount} nodes (~${estTokens.toLocaleString()} estimated tokens).`,
+            input_schema: {
+                type: 'object',
+                properties: {},
+                required: [],
+            },
+        },
+        {
+            name: 'validate_fix',
+            description: 'Validate proposed fixed nodes BEFORE submitting. Checks: node names exist, credentials preserved, expression references valid, node types unchanged. Call this before submit_fix to catch mistakes.',
+            input_schema: {
+                type: 'object',
+                properties: {
+                    fixed_nodes: { type: 'array', items: { type: 'object' }, description: 'Complete JSON of modified node(s) to validate' },
+                },
+                required: ['fixed_nodes'],
+            },
+        },
+        {
+            name: 'submit_fix',
+            description: 'Submit your validated fix. Provide ONLY the modified node(s) with their complete JSON. Do not include unmodified nodes. Call validate_fix first.',
+            input_schema: {
+                type: 'object',
+                properties: {
+                    fix_description: { type: 'string', description: 'What you changed and why' },
+                    fixed_nodes: { type: 'array', items: { type: 'object' }, description: 'Complete JSON of modified node(s) only' },
+                },
+                required: ['fix_description', 'fixed_nodes'],
+            },
+        },
+    ];
 }
 
 // Check daily fix limit
@@ -711,14 +788,13 @@ async function checkDailyLimit(instanceId: string): Promise<boolean> {
     return result.rows[0].count < max;
 }
 
-// Main entry point: attempt to fix a workflow error
 export async function attemptAiFix(
     executionId: string,
     triggeredBy: 'manual' | 'auto' = 'manual'
 ): Promise<FixResult> {
-    // 1. Get execution details with instance info
+    // 1. Get execution details with instance info + diagnosis
     const execResult = await query(`
-        SELECT e.id, e.error_message, e.error_node, e.remote_execution_id,
+        SELECT e.id, e.error_message, e.error_node, e.remote_execution_id, e.ai_diagnosis,
                w.remote_id as workflow_remote_id, w.name as workflow_name,
                i.id as instance_id, i.name as instance_name, i.base_url, i.n8n_api_key_encrypted
         FROM executions e
@@ -733,7 +809,24 @@ export async function attemptAiFix(
 
     const exec = execResult.rows[0];
 
-    // 2. Validate prerequisites
+    // 2. Check diagnosis exists — required before fix
+    if (!exec.ai_diagnosis) {
+        throw new Error('Run diagnosis first. AI Fix requires a prior diagnosis.');
+    }
+
+    const diagnosis: DiagnosisResult = exec.ai_diagnosis as DiagnosisResult;
+
+    // 3. If diagnosis says not fixable, return early (zero fix tokens)
+    if (diagnosis.fixable === false) {
+        return {
+            status: 'rejected',
+            diagnosis: diagnosis.diagnosis,
+            fixDescription: `AI diagnosis determined this error is not fixable: ${diagnosis.cause}`,
+            fixApplied: false,
+        };
+    }
+
+    // 4. Validate prerequisites
     if (!exec.base_url) {
         throw new Error(`Instance "${exec.instance_name}" has no base URL configured`);
     }
@@ -746,13 +839,13 @@ export async function attemptAiFix(
         throw new Error('Anthropic API key not configured. Go to Settings → AI Integration.');
     }
 
-    // 3. Check daily limit
+    // 5. Check daily limit
     const withinLimit = await checkDailyLimit(exec.instance_id);
     if (!withinLimit) {
         throw new Error('Daily AI fix limit reached. Increase the limit in Settings or wait 24 hours.');
     }
 
-    // 4. Create fix attempt record
+    // 6. Create fix attempt record
     const attemptResult = await query(
         `INSERT INTO ai_fix_attempts (execution_id, instance_id, workflow_remote_id, workflow_name, error_message, error_node, status, triggered_by)
          VALUES ($1, $2, $3, $4, $5, $6, 'in_progress', $7)
@@ -762,68 +855,144 @@ export async function attemptAiFix(
     const attemptId = attemptResult.rows[0].id;
 
     try {
-        // 5. Decrypt n8n API key
+        // 7. Decrypt n8n API key & fetch workflow
         const n8nApiKey = decrypt(exec.n8n_api_key_encrypted);
+        const rawWorkflowJson = await fetchWorkflowFromN8n(exec.base_url, n8nApiKey, exec.workflow_remote_id);
+        const workflowJson = sanitizeWorkflowForAI(rawWorkflowJson);
 
-        // 6. Fetch workflow from n8n
-        const workflow = await fetchWorkflowFromN8n(exec.base_url, n8nApiKey, exec.workflow_remote_id);
+        // 8. Build initial message with diagnosis context + workflow map
+        const workflowMapStr = getWorkflowMap(workflowJson, exec.error_node || undefined);
+        const nodeCount = (workflowJson?.nodes || []).length;
+        const estTokens = estimateTokens(workflowJson);
 
-        // 7. Build error context
-        const errorContext = [
+        const initialMessage = [
             `Workflow: "${exec.workflow_name}" (ID: ${exec.workflow_remote_id})`,
             `Instance: "${exec.instance_name}" (${exec.base_url})`,
-            `Execution ID: ${exec.remote_execution_id}`,
+            `Execution ID: ${exec.remote_execution_id || 'N/A'}`,
             `Failed Node: ${exec.error_node || 'Unknown'}`,
-            `Error Message: ${exec.error_message || 'No error message'}`,
+            `Error Message: ${exec.error_message || 'No error message available'}`,
+            '',
+            '--- PRIOR AI DIAGNOSIS ---',
+            `Diagnosis: ${diagnosis.diagnosis}`,
+            `Cause: ${diagnosis.cause}`,
+            `Resolution: ${diagnosis.resolution}`,
+            `Category: ${diagnosis.category}`,
+            `Severity: ${diagnosis.severity}`,
+            '',
+            workflowMapStr,
         ].join('\n');
 
-        // 8. Call Anthropic
-        const aiResult = await callAnthropicForFix(anthropicKey, errorContext, workflow);
+        // 9. Define tools + executor with submit_fix capture
+        const tools = getFixTools(nodeCount, estTokens);
+        let capturedFix: { fix_description: string; fixed_nodes: any[] } | null = null;
 
-        // 8b. Log token usage
-        await logTokenUsage(executionId, 'fix', aiResult.token_usage);
+        const toolExecutor = async (toolName: string, input: Record<string, any>): Promise<string> => {
+            switch (toolName) {
+                case 'get_nodes': {
+                    const { nodes, notFound } = extractNodesFromWorkflow(workflowJson, input.node_names || []);
+                    return JSON.stringify({ nodes, notFound });
+                }
+                case 'get_connected_nodes': {
+                    const connected = getConnectedNodes(
+                        workflowJson,
+                        input.node_name,
+                        input.direction || 'both',
+                        input.hops || 1
+                    );
+                    return JSON.stringify({ node: input.node_name, direction: input.direction || 'both', connected });
+                }
+                case 'get_full_workflow': {
+                    return JSON.stringify(workflowJson);
+                }
+                case 'validate_fix': {
+                    const validation = validateFixedNodes(workflowJson, input.fixed_nodes || []);
+                    console.log(`[fix] validate_fix: ${validation.valid ? 'PASS' : 'FAIL'} (${validation.errors.length} errors, ${validation.warnings.length} warnings)`);
+                    return JSON.stringify(validation);
+                }
+                case 'submit_fix': {
+                    // Auto-validate before accepting
+                    const preCheck = validateFixedNodes(workflowJson, input.fixed_nodes || []);
+                    if (!preCheck.valid) {
+                        console.warn(`[fix] submit_fix rejected: ${preCheck.errors.join('; ')}`);
+                        return JSON.stringify({ status: 'rejected', errors: preCheck.errors, warnings: preCheck.warnings, message: 'Fix has validation errors. Please fix the issues and try again.' });
+                    }
+                    capturedFix = {
+                        fix_description: input.fix_description || 'No description',
+                        fixed_nodes: input.fixed_nodes || [],
+                    };
+                    return JSON.stringify({ status: 'accepted', nodes_received: capturedFix.fixed_nodes.length, warnings: preCheck.warnings });
+                }
+                default:
+                    return JSON.stringify({ error: `Unknown tool: ${toolName}` });
+            }
+        };
 
-        // 9. Apply fix if available
+        // 10. Run the agentic fix loop
+        console.log(`[fix] Starting agentic fix for execution ${executionId} (${nodeCount} nodes, ~${estTokens.toLocaleString()} est. full-workflow tokens)`);
+
+        const agentResult = await runAgentLoop({
+            apiKey: anthropicKey,
+            systemPrompt: FIX_AGENT_PROMPT,
+            tools,
+            initialMessage,
+            toolExecutor,
+            maxTurns: 8,
+            maxOutputTokens: 4096,
+            timeoutMs: 90000,
+        });
+
+        const token_usage: TokenUsage = agentResult.totalTokenUsage;
+        console.log(`[fix] Completed in ${agentResult.turns} turn(s), ${token_usage.input_tokens + token_usage.output_tokens} total tokens`);
+
+        // 11. Log token usage
+        await logTokenUsage(executionId, 'fix', token_usage);
+
+        // 12. Apply captured fix if submit_fix was called
         let fixApplied = false;
-        if (aiResult.fixedNodes) {
+        const parsedFinal = parseAiJsonResponse(agentResult.finalText);
+        const rawFixDesc = parsedFinal?.error || parsedFinal?.fix_description || parsedFinal?.reason || agentResult.finalText
+            || `AI agent exhausted ${agentResult.turns} turns inspecting the workflow without submitting a fix. This error may require manual intervention.`;
+        let fixDesc = typeof rawFixDesc === 'string' && rawFixDesc.length > 500 ? rawFixDesc.slice(0, 500) + '…' : String(rawFixDesc);
+        const fix = capturedFix as { fix_description: string; fixed_nodes: any[] } | null;
+
+        if (fix && fix.fixed_nodes.length > 0) {
+            fixDesc = fix.fix_description;
             try {
-                await applyFixToN8n(exec.base_url, n8nApiKey, exec.workflow_remote_id, aiResult.fixedNodes);
+                const updatedWorkflow = replaceNodesInWorkflow(rawWorkflowJson, fix.fixed_nodes);
+                await applyFixToN8n(exec.base_url, n8nApiKey, exec.workflow_remote_id, updatedWorkflow);
                 fixApplied = true;
             } catch (applyErr: any) {
-                // Record the failed application but don't throw — the diagnosis is still valuable
                 await query(
                     `UPDATE ai_fix_attempts SET status = 'failed', ai_diagnosis = $1, ai_fix_description = $2, completed_at = NOW() WHERE id = $3`,
-                    [aiResult.diagnosis, `Fix generated but failed to apply: ${applyErr.message}`, attemptId]
+                    [diagnosis.diagnosis, `Fix generated but failed to apply: ${applyErr.message}`, attemptId]
                 );
                 return {
                     status: 'failed',
-                    diagnosis: aiResult.diagnosis,
+                    diagnosis: diagnosis.diagnosis,
                     fixDescription: `Fix generated but failed to apply: ${applyErr.message}`,
                     fixApplied: false,
-                    token_usage: aiResult.token_usage,
+                    token_usage,
                 };
             }
         }
 
-        // 10. Update attempt record
-        const status = fixApplied ? 'success' : (aiResult.fixedNodes === null ? 'rejected' : 'failed');
-        const fixDesc = fixApplied ? 'Fix applied successfully' : (aiResult.fixedNodes === null ? 'Error not fixable via node configuration' : 'No fix generated');
+        // 13. Update attempt record
+        const status = fixApplied ? 'success' : (capturedFix ? 'failed' : 'rejected');
 
         await query(
             `UPDATE ai_fix_attempts SET status = $1, ai_diagnosis = $2, ai_fix_description = $3, fix_applied = $4, completed_at = NOW() WHERE id = $5`,
-            [status, aiResult.diagnosis, fixDesc, fixApplied, attemptId]
+            [status, diagnosis.diagnosis, fixDesc, fixApplied, attemptId]
         );
 
         return {
             status,
-            diagnosis: aiResult.diagnosis,
+            diagnosis: diagnosis.diagnosis,
             fixDescription: fixDesc,
             fixApplied,
-            token_usage: aiResult.token_usage,
+            token_usage,
         };
 
     } catch (err: any) {
-        // Update attempt as failed
         await query(
             `UPDATE ai_fix_attempts SET status = 'failed', ai_diagnosis = $1, completed_at = NOW() WHERE id = $2`,
             [err.message, attemptId]
