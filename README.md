@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <b>Observability for n8n — know what your workflows are doing before your clients do.</b>
+  <b>Observability for n8n — Fix erros before they become problems.</b>
 </p>
 
 <p align="center">
@@ -134,19 +134,18 @@ Open `http://localhost:3000` in your browser. Create your admin account, registe
 
 ## Screenshots
 
-<!-- Replace these paths with your actual screenshot files -->
+| Fix with AI |
+|:---:|
+| ![Fix with AI](docs/images/n8n-sentinel-error-fix-with-ai.png) |
 
 | Dashboard Overview | Error Diagnosis | Token Analytics |
 |:---:|:---:|:---:|
 | ![Dashboard](docs/images/n8n-sentinel-dashboard.png) | ![Diagnosis](docs/images/n8n-sentinel-error-dashbaord-with-ai-diagnose.png) | ![Tokens](docs/images/n8n-sentinel-token-usage-charts.png) |
 
-| Fix with AI | Workflow Browser | Alerts |
+| Resources | Workflow Browser | Alerts |
 |:---:|:---:|:---:|
-| ![Fix with AI](docs/images/n8n-sentinel-error-fix-with-ai.png) | ![Workflows](docs/images/n8n-sentinel-Workflows.png) | ![Alerts](docs/images/n8n-sentinel-Alerts.png) |
+| ![Resources](docs/images/n8n-sentinel-resources.png) | ![Workflows](docs/images/n8n-sentinel-Workflows.png) | ![Alerts](docs/images/n8n-sentinel-Alerts.png) |
 
-| Resource Inventory | | |
-|:---:|:---:|:---:|
-| ![Resources](docs/images/n8n-sentinel-resources.png) | | |
 
 ## Philosophy
 
@@ -156,13 +155,7 @@ Every feature listed above ships in the open-source version. There is no "Commun
 
 We believe observability is not a luxury feature — if you're running workflows that matter, you deserve full visibility into them regardless of your budget.
 
-**How we sustain this:**
-
-- **n8n Sentinel Cloud** (coming soon) — a managed, hosted version of Sentinel for teams that don't want to deal with servers, backups, and upgrades. Same features, zero ops. The Cloud version will include managed email reports and alert notifications delivered via our infrastructure — the only capabilities that require us to operate services on your behalf.
-
-- **Community Donations** — If Sentinel saves you from a silent workflow failure at 2 AM, consider [sponsoring the project](https://github.com/sponsors/TPGLLC-US).
-
-This model is inspired by [Coolify](https://coolify.io/philosophy), [Plausible](https://plausible.io), and [Cal.com](https://cal.com) — projects that prove great open-source software and sustainable businesses aren't mutually exclusive.
+- **Community Donations** — If n8n Sentinel saves you from a silent workflow failure at 2 AM, consider [sponsoring the project](https://github.com/sponsors/TPGLLC-US).
 
 ## Configuration
 
@@ -222,7 +215,7 @@ We welcome contributions! Whether it's a bug fix, a new feature, documentation i
 4. Push to the branch: `git push origin feature/my-feature`
 5. Open a Pull Request against `main`
 
-**Please note:** By contributing, you agree to the [Contributor License Agreement (CLA)](CLA.md), which allows us to include your contributions in both the open-source and Cloud versions of Sentinel. Your code remains AGPL-3.0 licensed in the open-source repository — the CLA simply grants us the rights needed to operate the managed Cloud service.
+**Please note:** By contributing, you agree to the [Contributor License Agreement (CLA)](CLA.md), which allows us to include your contributions in both the open-source and Cloud versions of Sentinel.
 
 For detailed setup instructions, architecture overview, and coding conventions, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
@@ -242,14 +235,6 @@ For detailed setup instructions, architecture overview, and coding conventions, 
 <!-- Uncomment when ready:
 - [Discord](https://discord.gg/your-invite) — Real-time chat with the community
 -->
-
-## License
-
-n8n Sentinel is licensed under the [GNU Affero General Public License v3.0 (AGPL-3.0)](LICENSE).
-
-You are free to use, modify, and self-host Sentinel. If you modify the source and make it available over a network, you must share your modifications under the same license.
-
-For commercial licensing inquiries, contact [joe@realsimplesolutions.com](mailto:n8n-sentinel@realsimplesolutions.ai).
 
 ---
 
