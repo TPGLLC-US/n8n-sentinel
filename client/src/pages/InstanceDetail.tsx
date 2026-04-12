@@ -79,14 +79,15 @@ export default function InstanceDetail() {
             const response = await fetch('/reporter-workflow.json');
             const workflow = await response.json();
 
-            // Fetch the current per-instance webhook URL from server
-            const webhookRes = await authFetch(`/instances/${data.instance.id}/webhook-url`);
-            const { webhook_url: webhookUrl } = await webhookRes.json();
+            // Fetch sensitive download credentials (hmac_secret, base_url, webhook_url)
+            const credRes = await authFetch(`/instances/${data.instance.id}/download-credentials`);
+            const creds = await credRes.json();
 
             let jsonString = JSON.stringify(workflow, null, 2);
             jsonString = jsonString.replace(/YOUR_INSTANCE_ID/g, data.instance.id);
-            jsonString = jsonString.replace(/YOUR_HMAC_SECRET/g, data.instance.hmac_secret);
-            jsonString = jsonString.replace(/YOUR_WEBHOOK_URL/g, webhookUrl);
+            jsonString = jsonString.replace(/YOUR_HMAC_SECRET/g, creds.hmac_secret);
+            jsonString = jsonString.replace(/YOUR_SENTINEL_URL/g, creds.webhook_url);
+            jsonString = jsonString.replace(/YOUR_N8N_URL/g, creds.base_url || '');
 
             const blob = new Blob([jsonString], { type: 'application/json' });
             const url = URL.createObjectURL(blob);

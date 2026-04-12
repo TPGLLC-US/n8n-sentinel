@@ -476,7 +476,8 @@ function CredentialsDisplay({ data, onClose }: any) {
             let jsonString = JSON.stringify(workflow, null, 2);
             jsonString = jsonString.replace(/YOUR_INSTANCE_ID/g, data.id);
             jsonString = jsonString.replace(/YOUR_HMAC_SECRET/g, data.hmac_secret);
-            jsonString = jsonString.replace(/YOUR_WEBHOOK_URL/g, webhookUrl);
+            jsonString = jsonString.replace(/YOUR_SENTINEL_URL/g, webhookUrl);
+            jsonString = jsonString.replace(/YOUR_N8N_URL/g, data.base_url || '');
 
             // Create blob and download
             const blob = new Blob([jsonString], { type: 'application/json' });
@@ -502,7 +503,7 @@ function CredentialsDisplay({ data, onClose }: any) {
                 <Check className="shrink-0 mt-0.5" size={16} />
                 <div>
                     <span className="font-bold block mb-1">Instance Registered!</span>
-                    Complete the 4 steps below to connect your n8n instance.
+                    Complete the 3 steps below to connect your n8n instance.
                 </div>
             </div>
 
