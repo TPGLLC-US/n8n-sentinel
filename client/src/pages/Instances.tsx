@@ -507,27 +507,10 @@ function CredentialsDisplay({ data, onClose }: any) {
                 </div>
             </div>
 
-            {/* Step 1: Create n8n API Credential */}
+            {/* Step 1: Download Workflow */}
             <div className="p-4 bg-secondary/50 rounded-lg border border-border space-y-3">
                 <div className="flex items-center gap-2">
                     <span className="w-6 h-6 rounded-md bg-primary/10 text-primary text-xs font-bold flex items-center justify-center">1</span>
-                    <h4 className="text-sm font-semibold text-foreground">Create n8n API Credential</h4>
-                </div>
-                <ol className="text-xs text-muted-foreground list-decimal pl-8 space-y-1.5">
-                    <li>In your n8n instance, go to <strong>Settings → n8n API</strong></li>
-                    <li>Create a new API key and copy it</li>
-                    <li>Go to <strong>Credentials → Add Credential</strong></li>
-                    <li>Search for <strong>"n8n API"</strong> and create it</li>
-                    <li>Set Name: <code className="bg-secondary px-1.5 py-0.5 rounded text-primary">Local n8n API</code></li>
-                    <li>Set Base URL: <code className="bg-secondary px-1.5 py-0.5 rounded text-primary">http://localhost:5678/api/v1</code> (or your instance URL)</li>
-                    <li>Set API Key: <em>paste your API key</em></li>
-                </ol>
-            </div>
-
-            {/* Step 2: Download Workflow */}
-            <div className="p-4 bg-secondary/50 rounded-lg border border-border space-y-3">
-                <div className="flex items-center gap-2">
-                    <span className="w-6 h-6 rounded-md bg-primary/10 text-primary text-xs font-bold flex items-center justify-center">2</span>
                     <h4 className="text-sm font-semibold text-foreground">Download Reporter Workflow</h4>
                 </div>
                 <p className="text-xs text-muted-foreground pl-8">
@@ -546,22 +529,22 @@ function CredentialsDisplay({ data, onClose }: any) {
                 </div>
             </div>
 
-            {/* Step 3: Import & Activate */}
+            {/* Step 2: Import & Activate */}
             <div className="p-4 bg-secondary/50 rounded-lg border border-border space-y-3">
                 <div className="flex items-center gap-2">
-                    <span className="w-6 h-6 rounded-md bg-primary/10 text-primary text-xs font-bold flex items-center justify-center">3</span>
+                    <span className="w-6 h-6 rounded-md bg-primary/10 text-primary text-xs font-bold flex items-center justify-center">2</span>
                     <h4 className="text-sm font-semibold text-foreground">Import & Activate in n8n</h4>
                 </div>
                 <ol className="text-xs text-muted-foreground list-decimal pl-8 space-y-1.5">
                     <li>Open your n8n instance workflow editor</li>
                     <li>Click <strong>⋮</strong> (menu) → <strong>Import from File</strong></li>
                     <li>Select the downloaded JSON file</li>
-                    <li>Open the <strong>Get Workflows</strong> node and select your "n8n API Key" credential</li>
+                    <li>n8n will prompt you to select your n8n API credential when you import the workflow.</li>
                     <li>Click <strong>Save</strong> and toggle the workflow to <strong>Active</strong></li>
                 </ol>
             </div>
 
-            {/* Step 4: Verify Connection */}
+            {/* Step 3: Verify Connection */}
             <div className={`p-4 rounded-lg border space-y-3 ${verificationStatus === 'connected'
                 ? 'bg-emerald-500/10 border-emerald-500/30'
                 : 'bg-secondary/50 border-border'
@@ -570,10 +553,13 @@ function CredentialsDisplay({ data, onClose }: any) {
                     <span className={`w-6 h-6 rounded-md text-xs font-bold flex items-center justify-center ${verificationStatus === 'connected'
                         ? 'bg-emerald-500/20 text-emerald-400'
                         : 'bg-primary/10 text-primary'
-                        }`}>4</span>
+                        }`}>3</span>
                     <h4 className="text-sm font-semibold text-foreground">Verify Connection</h4>
                 </div>
 
+                <p className="text-xs text-muted-foreground pl-8">
+                    Once the workflow is active, Sentinel will detect the first heartbeat automatically.
+                </p>
                 {verificationStatus === 'connected' ? (
                     <div className="flex items-center gap-2 pl-8 text-emerald-400 text-sm">
                         <Check size={16} />
