@@ -1,24 +1,28 @@
-// Process Executions: Merge HTTP execution metadata + Postgres token data
-// HTTP metadata comes from $('Get Executions'), token data from $input (Get Token Data)
-// Token extraction happens in Postgres via SQL JSON functions — no large data transfer
+// Process Executions: Merge execution metadata + token data from Extract Tokens loop
+// Execution list comes from $('Get Executions') n8n node, token data from $input (Aggregate)
 
-// 1. Get execution metadata from HTTP response (handles paginated multi-page responses)
+// 1. Get execution metadata (n8n node returns items directly, no data wrapper)
 let executions = [];
 try {
-  const httpItems = $('Get Executions').all().map(i => i.json);
-  if (httpItems.length === 1 && httpItems[0].data && Array.isArray(httpItems[0].data)) {
-    executions = httpItems[0].data;
-  } else if (httpItems.length > 1 && httpItems[0].data && Array.isArray(httpItems[0].data)) {
-    executions = httpItems.flatMap(r => r.data || []);
-  } else {
-    executions = httpItems;
-  }
+  executions = $('Get Executions').all().map(i => i.json);
 } catch (e) {
   executions = [];
 }
 
-// 2. Get pre-extracted token data from Postgres (via Get Token Data node)
-const tokenRows = $input.all().map(i => i.json);
+// 2. Get token data from the Extract Tokens → Aggregate path
+let tokenRows = [];
+try {
+  const rawItems = $input.all().map(i => i.json);
+  if (rawItems.length === 1 && Array.isArray(rawItems[0].data)) {
+    tokenRows = rawItems[0].data;
+  } else if (rawItems.length > 0 && rawItems[0].execution_id) {
+    tokenRows = rawItems;
+  } else {
+    tokenRows = rawItems.flatMap(r => r.data || [r]);
+  }
+} catch (e) {
+  tokenRows = [];
+}
 
 // 3. Group token rows by execution_id
 const tokensByExec = {};
@@ -38,8 +42,6 @@ for (const row of tokenRows) {
 // 4. Merge: attach token_usage to each execution, pass through error fields
 const processed = executions.map(exec => {
   const execId = String(exec.id);
-
-  // Extract error message from n8n's execution object if available
   const errorMsg = exec.error?.message || exec.error?.description || null;
 
   return {

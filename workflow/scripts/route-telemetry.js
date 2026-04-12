@@ -2,9 +2,9 @@
 // $('NodeName').first() throws if the node wasn't executed in this run
 let trigger = 'manual';
 let syncParams = {};
-try { $('Heartbeat (5m)').first(); trigger = 'heartbeat'; } catch(e) {}
-try { $('Executions (8h)').first(); trigger = 'executions'; } catch(e) {}
-try { $('Config (6h)').first(); trigger = 'configuration'; } catch(e) {}
+try { $('Heartbeat (15m)').first(); trigger = 'heartbeat'; } catch(e) {}
+try { $('Executions (3h)').first(); trigger = 'executions'; } catch(e) {}
+try { $('Config (3h)').first(); trigger = 'configuration'; } catch(e) {}
 try { $('Error Trigger').first(); trigger = 'error'; } catch(e) {}
 try {
   const wh = $('Manual Webhook').first();

@@ -339,6 +339,7 @@ router.post('/', async (req: Request, res: Response) => {
             id: newInstance.id,
             name: newInstance.name,
             hmac_secret: newInstance.hmac_secret,
+            base_url: newInstance.base_url,
             webhook_url: buildWebhookUrl(req, accountToken, newInstance.ingest_token)
         });
     } catch (error) {
@@ -526,6 +527,34 @@ router.get('/:id/webhook-url', async (req: Request, res: Response) => {
         res.json({ webhook_url: webhookUrl });
     } catch (error) {
         console.error('Error getting webhook URL:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// GET /api/instances/:id/download-credentials - Get credentials needed for workflow download
+router.get('/:id/download-credentials', async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        const result = await query(
+            `SELECT hmac_secret, base_url, ingest_token FROM instances WHERE id = $1`,
+            [id]
+        );
+
+        if (result.rows.length === 0) {
+            res.status(404).json({ error: 'Instance not found' });
+            return;
+        }
+
+        const accountToken = await getAccountIngestToken();
+        const webhookUrl = buildWebhookUrl(req, accountToken, result.rows[0].ingest_token);
+
+        res.json({
+            hmac_secret: result.rows[0].hmac_secret,
+            base_url: result.rows[0].base_url,
+            webhook_url: webhookUrl
+        });
+    } catch (error) {
+        console.error('Error fetching download credentials:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 });
