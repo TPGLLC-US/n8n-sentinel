@@ -32,6 +32,11 @@ export async function createAlert(alertType: string, message: string, instanceId
     console.log(`CREATED ALERT: [${alertType}] ${message}`);
     sendAlertEmail(alertType, severity, message, instanceId, result.rows[0].triggered_at).catch((err: any) => {
         console.error('[alert-email] Failed to send:', err.message);
+        recordEmailFailure({
+            alertType, severity, message, instanceId,
+            triggeredAt: new Date(result.rows[0].triggered_at),
+            errorMessage: err?.message || String(err),
+        });
     });
 }
 
@@ -256,3 +261,31 @@ const alertTypeLabels: Record<string, string> = {
     instance_url_mismatch: 'Instance URL Mismatch',
     reporter_outdated: 'Reporter Outdated',
 };
+
+interface EmailFailureRecord {
+    alertType: string;
+    severity: string;
+    message: string;
+    instanceId: string;
+    triggeredAt: Date;
+    errorMessage: string;
+}
+
+export const recordEmailFailure = Object.assign(
+    async function (rec: EmailFailureRecord): Promise<void> {
+        const { sql, values } = recordEmailFailure.buildQuery(rec);
+        await query(sql, values).catch(err => {
+            console.error('[alert-email] Failed to persist failure record:', err);
+        });
+    },
+    {
+        buildQuery(rec: EmailFailureRecord) {
+            return {
+                sql: `INSERT INTO alert_email_attempts
+                      (alert_type, severity, message, instance_id, triggered_at, status, error_message)
+                      VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+                values: [rec.alertType, rec.severity, rec.message, rec.instanceId, rec.triggeredAt, 'failed', rec.errorMessage],
+            };
+        },
+    }
+);

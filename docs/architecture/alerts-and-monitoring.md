@@ -15,6 +15,7 @@
 - `server/src/emails/AlertNotification.tsx` — React Email component; `renderAlertNotification` returns the rendered HTML.
 - `server/src/routes/alerts.ts` — thin HTTP surface.
 - `client/src/pages/Alerts.tsx` — UI listing + acknowledge action.
+- `alert_email_attempts` (DB table) — persists failed email delivery attempts for audit/retry.
 
 **Alert types (`AlertType` at `services/alerts.ts:8-18`).**
 | Constant | Type string | Raised by |
@@ -55,5 +56,6 @@ Thresholds are constants at the top of the workflow section: `THRESHOLD_DROP_PER
 
 - Interval lifecycle + graceful shutdown added 2026-04-17 — see `## [Unreleased]` in CHANGELOG.
 - Duplicate-active-alert race fixed 2026-04-17 via partial unique index — see `## [Unreleased]` in CHANGELOG.
+- Alert email delivery failures now persisted to `alert_email_attempts` (2026-04-17).
 
 **Deep dive.** See `graphify-out/` for the Alerts & Monitoring community — overlaps with Instance Management (URL mismatch, token rotation) and Reporter Workflow (reporter-version surveillance).
