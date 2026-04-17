@@ -97,66 +97,66 @@ export async function gatherReportData(period: 'daily' | 'weekly' | 'monthly', i
     ] = await Promise.all([
         // Execution stats
         query(`
-            SELECT 
+            SELECT
                 COUNT(*)::int as total,
                 COUNT(*) FILTER (WHERE status = 'success')::int as successful,
                 COUNT(*) FILTER (WHERE status = 'error')::int as failed
             FROM executions
-            WHERE started_at >= NOW() - INTERVAL '${interval}'
-        `),
+            WHERE started_at >= NOW() - $1::interval
+        `, [interval]),
 
         // Top failing workflows
         query(`
             SELECT w.name as workflow_name, COUNT(*)::int as error_count
             FROM executions e
             JOIN workflows w ON e.workflow_id = w.id
-            WHERE e.status = 'error' AND e.started_at >= NOW() - INTERVAL '${interval}'
+            WHERE e.status = 'error' AND e.started_at >= NOW() - $1::interval
             GROUP BY w.name
             ORDER BY error_count DESC
             LIMIT 5
-        `),
+        `, [interval]),
 
         // Top failing nodes
         query(`
             SELECT error_node, COUNT(*)::int as error_count
             FROM executions
             WHERE status = 'error' AND error_node IS NOT NULL
-              AND started_at >= NOW() - INTERVAL '${interval}'
+              AND started_at >= NOW() - $1::interval
             GROUP BY error_node
             ORDER BY error_count DESC
             LIMIT 5
-        `),
+        `, [interval]),
 
         // Diagnosis stats
         query(`
-            SELECT 
+            SELECT
                 COUNT(*) FILTER (WHERE ai_diagnosis IS NOT NULL)::int as diagnosed,
-                (SELECT COUNT(*)::int FROM diagnosis_feedback 
-                 WHERE rating = 'up' AND created_at >= NOW() - INTERVAL '${interval}') as feedback_up,
-                (SELECT COUNT(*)::int FROM diagnosis_feedback 
-                 WHERE rating = 'down' AND created_at >= NOW() - INTERVAL '${interval}') as feedback_down
+                (SELECT COUNT(*)::int FROM diagnosis_feedback
+                 WHERE rating = 'up' AND created_at >= NOW() - $1::interval) as feedback_up,
+                (SELECT COUNT(*)::int FROM diagnosis_feedback
+                 WHERE rating = 'down' AND created_at >= NOW() - $1::interval) as feedback_down
             FROM executions
-            WHERE status = 'error' AND started_at >= NOW() - INTERVAL '${interval}'
-        `),
+            WHERE status = 'error' AND started_at >= NOW() - $1::interval
+        `, [interval]),
 
         // Token usage totals
         query(`
-            SELECT 
+            SELECT
                 COALESCE(SUM(tokens_input), 0)::bigint as total_input,
                 COALESCE(SUM(tokens_output), 0)::bigint as total_output
             FROM token_usage
-            WHERE recorded_at >= NOW() - INTERVAL '${interval}'
-        `),
+            WHERE recorded_at >= NOW() - $1::interval
+        `, [interval]),
 
         // Top models by usage
         query(`
             SELECT model, SUM(tokens_input + tokens_output)::bigint as total_tokens
             FROM token_usage
-            WHERE recorded_at >= NOW() - INTERVAL '${interval}' AND model IS NOT NULL AND model != 'unknown'
+            WHERE recorded_at >= NOW() - $1::interval AND model IS NOT NULL AND model != 'unknown'
             GROUP BY model
             ORDER BY total_tokens DESC
             LIMIT 5
-        `),
+        `, [interval]),
 
         // Instance health
         query(`
@@ -182,10 +182,10 @@ export async function gatherReportData(period: 'daily' | 'weekly' | 'monthly', i
             SELECT a.alert_type, a.message, COALESCE(i.name, 'Unknown') as instance_name, a.triggered_at
             FROM alerts a
             LEFT JOIN instances i ON a.instance_id = i.id
-            WHERE a.triggered_at >= NOW() - INTERVAL '${interval}'
+            WHERE a.triggered_at >= NOW() - $1::interval
             ORDER BY a.triggered_at DESC
             LIMIT 10
-        `),
+        `, [interval]),
     ]);
 
     const exec = execStats.rows[0];
@@ -238,46 +238,46 @@ async function gatherInstanceBreakdowns(interval: string, instanceList: any[]): 
                        COUNT(*) FILTER (WHERE e.status = 'error')::int as failed
                 FROM executions e
                 JOIN workflows w ON e.workflow_id = w.id
-                WHERE w.instance_id = $1 AND e.started_at >= NOW() - INTERVAL '${interval}'
-            `, [inst.id]),
+                WHERE w.instance_id = $1 AND e.started_at >= NOW() - $2::interval
+            `, [inst.id, interval]),
             query(`
                 SELECT w.name as workflow_name, COUNT(*)::int as error_count
                 FROM executions e
                 JOIN workflows w ON e.workflow_id = w.id
-                WHERE e.status = 'error' AND w.instance_id = $1 AND e.started_at >= NOW() - INTERVAL '${interval}'
+                WHERE e.status = 'error' AND w.instance_id = $1 AND e.started_at >= NOW() - $2::interval
                 GROUP BY w.name ORDER BY error_count DESC LIMIT 5
-            `, [inst.id]),
+            `, [inst.id, interval]),
             query(`
                 SELECT e.error_node, COUNT(*)::int as error_count
                 FROM executions e
                 JOIN workflows w ON e.workflow_id = w.id
                 WHERE e.status = 'error' AND e.error_node IS NOT NULL
-                  AND w.instance_id = $1 AND e.started_at >= NOW() - INTERVAL '${interval}'
+                  AND w.instance_id = $1 AND e.started_at >= NOW() - $2::interval
                 GROUP BY e.error_node ORDER BY error_count DESC LIMIT 3
-            `, [inst.id]),
+            `, [inst.id, interval]),
             query(`
                 SELECT COUNT(*) FILTER (WHERE e.ai_diagnosis IS NOT NULL)::int as diagnosed
                 FROM executions e
                 JOIN workflows w ON e.workflow_id = w.id
-                WHERE e.status = 'error' AND w.instance_id = $1 AND e.started_at >= NOW() - INTERVAL '${interval}'
-            `, [inst.id]),
+                WHERE e.status = 'error' AND w.instance_id = $1 AND e.started_at >= NOW() - $2::interval
+            `, [inst.id, interval]),
             query(`
                 SELECT COALESCE(SUM(tu.tokens_input), 0)::bigint as total_input,
                        COALESCE(SUM(tu.tokens_output), 0)::bigint as total_output
                 FROM token_usage tu
                 JOIN executions e ON e.id = tu.execution_id
                 JOIN workflows w ON w.id = e.workflow_id
-                WHERE w.instance_id = $1 AND tu.recorded_at >= NOW() - INTERVAL '${interval}'
-            `, [inst.id]),
+                WHERE w.instance_id = $1 AND tu.recorded_at >= NOW() - $2::interval
+            `, [inst.id, interval]),
             query(`
                 SELECT COUNT(*)::int as count FROM alerts
                 WHERE instance_id = $1 AND acknowledged_at IS NULL
             `, [inst.id]),
             query(`
                 SELECT alert_type, message, triggered_at FROM alerts
-                WHERE instance_id = $1 AND triggered_at >= NOW() - INTERVAL '${interval}'
+                WHERE instance_id = $1 AND triggered_at >= NOW() - $2::interval
                 ORDER BY triggered_at DESC LIMIT 5
-            `, [inst.id]),
+            `, [inst.id, interval]),
         ]);
 
         const e = execRes.rows[0];
