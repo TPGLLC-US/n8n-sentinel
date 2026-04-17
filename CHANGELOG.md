@@ -6,6 +6,10 @@
 
 - **Jest test suite** — Server-side Jest + `ts-jest` + `supertest` scaffold at `server/jest.config.ts`; first specs cover `safe-fetch` IPv4/IPv6 blocklist. Run via `npm test`.
 
+### Security
+
+- **`ENCRYPTION_KEY` required in production** — Process throws when the env var is unset under `NODE_ENV=production`; dev fallback retained with a warning. `server/src/services/encryption.ts`
+
 ### Fixed
 
 - **Scheduler lifecycle** — Heartbeat interval is now cleanable on shutdown, boot failures in one scheduler don't block others, and `SIGTERM`/`SIGINT` trigger graceful HTTP close. `server/src/services/scheduler.ts`, `server/src/index.ts`

@@ -51,6 +51,8 @@ Throws `SSRFError` on any violation; callers should treat SSRFError as a user-fa
 5. Client's `authFetch` attaches `Authorization: Bearer <token>` to every `/api/*` call; on 401 it posts `refreshToken` to `/api/auth/refresh` and retries.
 6. Logout sends `{refreshToken}` to `/api/auth/logout` which deletes the hash from `refresh_tokens` (`lib/auth.ts:109-112`).
 
-**Known issues.** None at time of writing.
+**Known issues.**
+
+- Production now fails-fast without `ENCRYPTION_KEY` (2026-04-17).
 
 **Deep dive.** See `graphify-out/` community notes for the Auth & Sessions cluster and for `safe-fetch` call sites across services.
