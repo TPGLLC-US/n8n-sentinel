@@ -12,6 +12,7 @@
 - **Client util dedupe** — `formatDuration` consolidated into `client/src/lib/format.ts`.
 - **Configurable timeouts** — `safe-fetch` and n8n API calls now read defaults from `TIMEOUT_SAFE_FETCH_MS`, `TIMEOUT_N8N_READ_MS`, `TIMEOUT_N8N_EXEC_READ_MS` env vars. `server/src/config/timeouts.ts`
 - **Reports: parameterize `INTERVAL`** — Replace string-interpolated `INTERVAL '${...}'` fragments with bound `$N::interval` parameters. No behavior change; removes a future SQLi landmine. `server/src/services/reports.ts`
+- **Drop unused `cookie-parser` dependency.**
 
 ### Security
 
