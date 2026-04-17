@@ -614,7 +614,7 @@ function CredentialField({ label, value }: any) {
                 <code className="flex-1 bg-background border border-border text-foreground/80 p-3 rounded-lg text-xs font-mono overflow-x-auto">
                     {value}
                 </code>
-                <button onClick={copy} className="p-3 text-muted-foreground hover:text-foreground hover:bg-accent rounded-lg transition-colors duration-150 border border-transparent hover:border-border">
+                <button onClick={copy} aria-label="Copy to clipboard" className="p-3 text-muted-foreground hover:text-foreground hover:bg-accent rounded-lg transition-colors duration-150 border border-transparent hover:border-border">
                     {copied ? <Check size={16} className="text-emerald-500" /> : <Copy size={16} />}
                 </button>
             </div>

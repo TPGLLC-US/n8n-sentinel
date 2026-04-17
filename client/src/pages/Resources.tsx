@@ -587,6 +587,7 @@ export default function Resources() {
                         <button
                             onClick={() => table.previousPage()}
                             disabled={!table.getCanPreviousPage()}
+                            aria-label="Previous page"
                             className="p-1.5 rounded hover:bg-accent disabled:opacity-30 disabled:cursor-not-allowed transition-colors duration-150"
                         >
                             <ChevronLeft size={16} />
@@ -594,6 +595,7 @@ export default function Resources() {
                         <button
                             onClick={() => table.nextPage()}
                             disabled={!table.getCanNextPage()}
+                            aria-label="Next page"
                             className="p-1.5 rounded hover:bg-accent disabled:opacity-30 disabled:cursor-not-allowed transition-colors duration-150"
                         >
                             <ChevronRight size={16} />

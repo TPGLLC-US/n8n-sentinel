@@ -554,7 +554,7 @@ function Modal({ title, onClose, children }: { title: string; onClose: () => voi
             <div className="card rounded-lg shadow-lg max-w-md w-full p-6">
                 <div className="flex justify-between items-center mb-4">
                     <h3 className="text-base font-semibold text-foreground">{title}</h3>
-                    <button onClick={onClose} className="text-muted-foreground hover:text-foreground"><X size={18} /></button>
+                    <button onClick={onClose} aria-label="Close" className="text-muted-foreground hover:text-foreground"><X size={18} /></button>
                 </div>
                 {children}
             </div>
@@ -569,7 +569,7 @@ function CopyField({ label, value }: { label: string; value: string }) {
             <label className="block text-xs text-muted-foreground mb-1">{label}</label>
             <div className="flex items-center gap-2 bg-secondary border border-border rounded-lg p-2.5">
                 <code className="text-xs font-mono text-foreground flex-1 truncate">{value}</code>
-                <button onClick={() => { navigator.clipboard.writeText(value); setCopied(true); setTimeout(() => setCopied(false), 2000); }} className="shrink-0 text-muted-foreground hover:text-foreground">
+                <button onClick={() => { navigator.clipboard.writeText(value); setCopied(true); setTimeout(() => setCopied(false), 2000); }} aria-label="Copy to clipboard" className="shrink-0 text-muted-foreground hover:text-foreground">
                     {copied ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
                 </button>
             </div>

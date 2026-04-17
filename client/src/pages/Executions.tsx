@@ -255,10 +255,10 @@ export default function Executions() {
                                 <option key={size} value={size}>{size} / page</option>
                             ))}
                         </select>
-                        <button onClick={() => table.previousPage()} disabled={!table.getCanPreviousPage()} className="p-1.5 rounded hover:bg-accent disabled:opacity-30 disabled:cursor-not-allowed transition-colors duration-150">
+                        <button onClick={() => table.previousPage()} disabled={!table.getCanPreviousPage()} aria-label="Previous page" className="p-1.5 rounded hover:bg-accent disabled:opacity-30 disabled:cursor-not-allowed transition-colors duration-150">
                             <ChevronLeft size={16} />
                         </button>
-                        <button onClick={() => table.nextPage()} disabled={!table.getCanNextPage()} className="p-1.5 rounded hover:bg-accent disabled:opacity-30 disabled:cursor-not-allowed transition-colors duration-150">
+                        <button onClick={() => table.nextPage()} disabled={!table.getCanNextPage()} aria-label="Next page" className="p-1.5 rounded hover:bg-accent disabled:opacity-30 disabled:cursor-not-allowed transition-colors duration-150">
                             <ChevronRight size={16} />
                         </button>
                     </div>
