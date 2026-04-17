@@ -51,6 +51,7 @@ Credentials are type-only refs (`{id:"",name:""}`) so n8n prompts the operator t
    - `configuration` calls `processConfiguration` (`services/ingest.ts:52`) plus `checkWorkflowThresholds` (`routes/ingest.ts:130-138`).
    - `executions` / `manual` / `error` call `processExecutions` (`services/ingest.ts:149`), upserting executions and token usage.
 
-**Known issues.** None at time of writing.
+**Known issues.**
+- Nonce now required (was optional); min length 16 (was 8) since 2026-04-17. Reporters older than v1.4.0 will be rejected.
 
 **Deep dive.** See `graphify-out/` for the Reporter Workflow community — tightly linked to Auth (HMAC/replay), Instance Management (token minting/rotation), and Resources Inventory (configuration to `extractor.ts`).
