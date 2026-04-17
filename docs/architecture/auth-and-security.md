@@ -56,5 +56,6 @@ Throws `SSRFError` on any violation; callers should treat SSRFError as a user-fa
 **Known issues.**
 
 - Production now fails-fast without `ENCRYPTION_KEY` (2026-04-17).
+- Refresh now requires `users.is_active = TRUE` (2026-04-17).
 
 **Deep dive.** See `graphify-out/` community notes for the Auth & Sessions cluster and for `safe-fetch` call sites across services.
