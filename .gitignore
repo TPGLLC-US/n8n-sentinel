@@ -38,6 +38,9 @@ coverage/
 # Worktrees
 .worktrees/
 
+# Regenerable graph outputs (see /graphify skill)
+graphify-out/
+
 # Claude Code
 CLAUDE.md
 docs/superpowers/
