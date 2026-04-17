@@ -9,6 +9,7 @@
 ### Changed
 
 - **Typed n8n workflow boundary** — `workflow-utils.ts` and its callers now use `N8nWorkflow`/`N8nWorkflowNode`/`N8nConnections` instead of `any`. Schema drift surfaces at compile time. `server/src/services/workflow-utils.ts`, `server/src/services/n8n-types.ts`
+- **Client util dedupe** — `formatDuration` consolidated into `client/src/lib/format.ts`.
 
 ### Security
 

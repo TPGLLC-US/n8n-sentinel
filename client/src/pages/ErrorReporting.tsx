@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { authFetch } from '../lib/auth';
 import { safeHref } from '../lib/safe-href';
+import { formatDuration } from '../lib/format';
 import {
     useReactTable,
     getCoreRowModel,
@@ -55,13 +56,6 @@ interface ErrorStats {
     top_failing_workflows: { workflow_name: string; remote_id: string; instance_name: string; instance_id: string; error_count: number }[];
     top_failing_nodes: { error_node: string; error_count: number }[];
     diagnosis_stats: { diagnosed: number; diagnosed_24h: number; thumbs_up: number; thumbs_down: number };
-}
-
-function formatDuration(ms: number | null): string {
-    if (!ms) return '-';
-    if (ms < 1000) return `${ms}ms`;
-    if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`;
-    return `${(ms / 60000).toFixed(1)}m`;
 }
 
 function timeAgo(dateStr: string): string {

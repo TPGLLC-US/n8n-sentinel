@@ -45,6 +45,7 @@ Auth gating is handled by `<AuthGuard />` (`client/src/components/AuthGuard.tsx`
 4. On 401, `authFetch` refreshes once; on second 401 it calls `logout()` which clears tokens and redirects.
 5. JSON is rendered by the page; errors are surfaced per-page (no global error boundary beyond React's defaults).
 
-**Known issues.** None at time of writing.
+**Known issues.**
+- `formatDuration` consolidated into `client/src/lib/format.ts` (2026-04-17).
 
 **Deep dive.** See `graphify-out/` for the Frontend community — `authFetch` is the single bottleneck edge into the API, and `InstanceDetail.tsx` is the largest page (workflow downloader + API key entry + rotation controls).
