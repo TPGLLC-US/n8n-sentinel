@@ -1,4 +1,5 @@
 import dns from 'dns/promises';
+import { TIMEOUTS } from '../config/timeouts';
 
 // ─── Blocked IP ranges ──────────────────────────────────────────────────
 
@@ -62,7 +63,7 @@ export async function safeFetch(
     options: RequestInit = {},
     opts: { timeoutMs?: number; maxResponseBytes?: number; allowHttp?: boolean } = {}
 ): Promise<Response> {
-    const { timeoutMs = 8000, allowHttp = false } = opts;
+    const { timeoutMs = TIMEOUTS.safeFetchDefault, allowHttp = false } = opts;
 
     // 1. Parse and validate URL
     let parsed: URL;

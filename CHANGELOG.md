@@ -10,6 +10,7 @@
 
 - **Typed n8n workflow boundary** — `workflow-utils.ts` and its callers now use `N8nWorkflow`/`N8nWorkflowNode`/`N8nConnections` instead of `any`. Schema drift surfaces at compile time. `server/src/services/workflow-utils.ts`, `server/src/services/n8n-types.ts`
 - **Client util dedupe** — `formatDuration` consolidated into `client/src/lib/format.ts`.
+- **Configurable timeouts** — `safe-fetch` and n8n API calls now read defaults from `TIMEOUT_SAFE_FETCH_MS`, `TIMEOUT_N8N_READ_MS`, `TIMEOUT_N8N_EXEC_READ_MS` env vars. `server/src/config/timeouts.ts`
 
 ### Security
 
