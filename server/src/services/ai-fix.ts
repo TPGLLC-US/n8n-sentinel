@@ -141,7 +141,8 @@ async function callAnthropicApi(apiKey: string, systemPrompt: string, userMessag
 
     if (!res.ok) {
         const body = await res.text().catch(() => '');
-        throw new Error(`Anthropic API error (${res.status}): ${body}`);
+        const preview = body.slice(0, 200).replace(/"(x-api-key|authorization)"\s*:\s*"[^"]*"/gi, '"$1":"[redacted]"');
+        throw new Error(`Anthropic API error (${res.status}): ${preview}`);
     }
 
     const data = await res.json();

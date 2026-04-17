@@ -20,6 +20,7 @@
 - **Rate-limit `/api/auth/refresh` (5/min) and `/api/auth/logout` (10/min).** `server/src/middleware/rate-limit.ts`
 - **Refresh rejects deactivated users** — `/api/auth/refresh` now verifies `users.is_active = TRUE`; refresh token is revoked when the user cannot be returned. `server/src/middleware/session.ts`
 - **Require nonce on ingest** + INSERT-first deduplication — replay attacks now blocked at the entry path even if payload capture occurs. Nonces must be 16–64 chars alphanumeric (stricter than previous 8-char minimum). `server/src/routes/ingest.ts`
+- **Truncate + redact Anthropic error bodies** — API error messages now cap at 200 chars and redact any `x-api-key`/`authorization` field values.
 
 ### Fixed
 
