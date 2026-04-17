@@ -102,11 +102,6 @@ export async function checkHeartbeats() {
     }
 }
 
-// Placeholder for error rate check (requires aggregating execution logs)
-export async function checkErrorRates() {
-    // console.log('Running Error Rate Check... (Not implemented yet)');
-}
-
 // --- WORKFLOW THRESHOLD CHECKS ---
 
 const THRESHOLD_DROP_PERCENT = 20; // Alert if workflows drop > 20% below baseline

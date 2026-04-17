@@ -28,6 +28,10 @@
 - **Duplicate active alerts** — TOCTOU race in `createAlert` (SELECT-then-INSERT) eliminated by a partial unique index on `(alert_type, instance_id) WHERE acknowledged_at IS NULL`, combined with `ON CONFLICT DO NOTHING`. Migration backfills any existing duplicates before the index is built. `server/migrations/`, `server/src/services/alerts.ts`
 - **Alert email failures are now persisted** to `alert_email_attempts` so outages are auditable and retriable. `server/src/services/alerts.ts`
 
+### Removed
+
+- **Dead `checkErrorRates` stub** removed from `services/alerts.ts`.
+
 ## [0.3.1] - 2026-03-08
 
 ### Fixed — Error Enrichment & Data Ingestion
