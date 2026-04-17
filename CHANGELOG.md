@@ -14,6 +14,7 @@
 ### Fixed
 
 - **Scheduler lifecycle** — Heartbeat interval is now cleanable on shutdown, boot failures in one scheduler don't block others, and `SIGTERM`/`SIGINT` trigger graceful HTTP close. `server/src/services/scheduler.ts`, `server/src/index.ts`
+- **Duplicate active alerts** — TOCTOU race in `createAlert` (SELECT-then-INSERT) eliminated by a partial unique index on `(alert_type, instance_id) WHERE acknowledged_at IS NULL`, combined with `ON CONFLICT DO NOTHING`. Migration backfills any existing duplicates before the index is built. `server/migrations/`, `server/src/services/alerts.ts`
 
 ## [0.3.1] - 2026-03-08
 

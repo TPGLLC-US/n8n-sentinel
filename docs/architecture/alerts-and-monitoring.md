@@ -54,5 +54,6 @@ Thresholds are constants at the top of the workflow section: `THRESHOLD_DROP_PER
 **Known issues.** None at time of writing.
 
 - Interval lifecycle + graceful shutdown added 2026-04-17 — see `## [Unreleased]` in CHANGELOG.
+- Duplicate-active-alert race fixed 2026-04-17 via partial unique index — see `## [Unreleased]` in CHANGELOG.
 
 **Deep dive.** See `graphify-out/` for the Alerts & Monitoring community — overlaps with Instance Management (URL mismatch, token rotation) and Reporter Workflow (reporter-version surveillance).
