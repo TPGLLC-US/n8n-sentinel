@@ -48,6 +48,8 @@ Diagnosis tools are separately defined in `getDiagnosisTools` (`ai-fix.ts:459`) 
 4. Tools read through `workflow-utils.ts` (no mutation yet). On `submit_fix`, `validateFixedNodes` runs again server-side.
 5. `applyFixToN8n` pushes the PUT. Success/failure, token usage, and fix metadata are persisted on the execution row.
 
-**Known issues.** None at time of writing.
+**Known issues.**
+
+- n8n boundary now typed via `n8n-types.ts` (2026-04-17).
 
 **Deep dive.** Graphify's AI community is centered on `ai-fix.ts` (god node) with strong edges to `ai-agent.ts`, `workflow-utils.ts`, `safe-fetch`, `encryption`, and `routes/errors.ts`. See `graphify-out/` for the map.

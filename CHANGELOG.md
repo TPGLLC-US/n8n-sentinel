@@ -6,6 +6,10 @@
 
 - **Jest test suite** — Server-side Jest + `ts-jest` + `supertest` scaffold at `server/jest.config.ts`; first specs cover `safe-fetch` IPv4/IPv6 blocklist. Run via `npm test`.
 
+### Changed
+
+- **Typed n8n workflow boundary** — `workflow-utils.ts` and its callers now use `N8nWorkflow`/`N8nWorkflowNode`/`N8nConnections` instead of `any`. Schema drift surfaces at compile time. `server/src/services/workflow-utils.ts`, `server/src/services/n8n-types.ts`
+
 ### Security
 
 - **`ENCRYPTION_KEY` required in production** — Process throws when the env var is unset under `NODE_ENV=production`; dev fallback retained with a warning. `server/src/services/encryption.ts`

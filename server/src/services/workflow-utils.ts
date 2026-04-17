@@ -2,6 +2,8 @@
 // Pure functions for extracting, replacing, and mapping n8n workflow/execution data.
 // Used by the agentic AI diagnosis and fix loops.
 
+import { N8nWorkflow, N8nWorkflowNode, N8nConnections, N8nConnectionTarget } from './n8n-types';
+
 // ─── Workflow JSON utilities ─────────────────────────────────────────────────
 
 /**
@@ -9,15 +11,15 @@
  * Returns found nodes and a list of names that weren't found.
  */
 export function extractNodesFromWorkflow(
-    workflowJson: any,
+    workflowJson: N8nWorkflow,
     nodeNames: string[]
-): { nodes: any[]; notFound: string[] } {
-    const nodes: any[] = [];
+): { nodes: N8nWorkflowNode[]; notFound: string[] } {
+    const nodes: N8nWorkflowNode[] = [];
     const notFound: string[] = [];
-    const allNodes: any[] = workflowJson?.nodes || [];
+    const allNodes: N8nWorkflowNode[] = workflowJson?.nodes || [];
 
     for (const name of nodeNames) {
-        const node = allNodes.find((n: any) => n.name === name);
+        const node = allNodes.find((n: N8nWorkflowNode) => n.name === name);
         if (node) {
             nodes.push(node);
         } else {
@@ -33,27 +35,27 @@ export function extractNodesFromWorkflow(
  * Returns only connections where both source and target are in the requested set.
  */
 export function extractNodesWithConnections(
-    workflowJson: any,
+    workflowJson: N8nWorkflow,
     nodeNames: string[]
-): { nodes: any[]; connections: Record<string, any> } {
+): { nodes: N8nWorkflowNode[]; connections: N8nConnections } {
     const { nodes } = extractNodesFromWorkflow(workflowJson, nodeNames);
     const nameSet = new Set(nodeNames);
-    const connections: Record<string, any> = {};
-    const allConnections = workflowJson?.connections || {};
+    const connections: N8nConnections = {};
+    const allConnections: N8nConnections = workflowJson?.connections || {};
 
     for (const sourceName of Object.keys(allConnections)) {
         if (!nameSet.has(sourceName)) continue;
 
         const sourceConns = allConnections[sourceName];
-        const filteredSource: Record<string, any> = {};
+        const filteredSource: N8nConnections[string] = {};
 
         for (const connType of Object.keys(sourceConns)) {
-            const outputs: any[][] = sourceConns[connType];
-            const filteredOutputs = outputs.map((outputGroup: any[]) =>
-                outputGroup.filter((conn: any) => nameSet.has(conn.node))
+            const outputs: N8nConnectionTarget[][] = sourceConns[connType] || [];
+            const filteredOutputs = outputs.map((outputGroup: N8nConnectionTarget[]) =>
+                outputGroup.filter((conn: N8nConnectionTarget) => nameSet.has(conn.node))
             );
             // Only include if there are actual connections
-            if (filteredOutputs.some((g: any[]) => g.length > 0)) {
+            if (filteredOutputs.some((g: N8nConnectionTarget[]) => g.length > 0)) {
                 filteredSource[connType] = filteredOutputs;
             }
         }
@@ -70,15 +72,15 @@ export function extractNodesWithConnections(
  * Replace/update specific nodes in a workflow's nodes array (by name match).
  * Returns the full updated workflowJson (shallow clone with new nodes array).
  */
-export function replaceNodesInWorkflow(workflowJson: any, updatedNodes: any[]): any {
-    const updateMap = new Map<string, any>();
+export function replaceNodesInWorkflow(workflowJson: N8nWorkflow, updatedNodes: N8nWorkflowNode[]): N8nWorkflow {
+    const updateMap = new Map<string, N8nWorkflowNode>();
     for (const node of updatedNodes) {
         if (node.name) {
             updateMap.set(node.name, node);
         }
     }
 
-    const newNodes = (workflowJson?.nodes || []).map((existing: any) => {
+    const newNodes = (workflowJson?.nodes || []).map((existing: N8nWorkflowNode) => {
         const replacement = updateMap.get(existing.name);
         return replacement || existing;
     });
@@ -91,12 +93,12 @@ export function replaceNodesInWorkflow(workflowJson: any, updatedNodes: any[]): 
  * Returns an array of unique node names (excluding the starting node).
  */
 export function getConnectedNodes(
-    workflowJson: any,
+    workflowJson: N8nWorkflow,
     nodeName: string,
     direction: 'upstream' | 'downstream' | 'both' = 'both',
     hops: number = 1
 ): string[] {
-    const connections = workflowJson?.connections || {};
+    const connections: N8nConnections = workflowJson?.connections || {};
     const results = new Set<string>();
 
     if (direction === 'downstream' || direction === 'both') {
@@ -115,7 +117,7 @@ export function getConnectedNodes(
 
 /** Collect downstream nodes via BFS up to N hops */
 function collectDownstream(
-    connections: Record<string, any>,
+    connections: N8nConnections,
     startNode: string,
     hops: number,
     results: Set<string>
@@ -125,7 +127,7 @@ function collectDownstream(
 }
 
 /** Build a forward adjacency map: source → [target1, target2, ...] */
-function buildForwardMap(connections: Record<string, any>): Map<string, string[]> {
+function buildForwardMap(connections: N8nConnections): Map<string, string[]> {
     const map = new Map<string, string[]>();
 
     for (const sourceName of Object.keys(connections)) {
@@ -133,7 +135,7 @@ function buildForwardMap(connections: Record<string, any>): Map<string, string[]
         const sourceConns = connections[sourceName];
 
         for (const connType of Object.keys(sourceConns)) {
-            const outputs: any[][] = sourceConns[connType];
+            const outputs: N8nConnectionTarget[][] = sourceConns[connType] || [];
             for (const outputGroup of outputs) {
                 for (const conn of outputGroup) {
                     if (conn.node) {
@@ -152,14 +154,14 @@ function buildForwardMap(connections: Record<string, any>): Map<string, string[]
 }
 
 /** Build a reverse adjacency map: target → [source1, source2, ...] */
-function buildReverseMap(connections: Record<string, any>): Map<string, string[]> {
+function buildReverseMap(connections: N8nConnections): Map<string, string[]> {
     const map = new Map<string, string[]>();
 
     for (const sourceName of Object.keys(connections)) {
         const sourceConns = connections[sourceName];
 
         for (const connType of Object.keys(sourceConns)) {
-            const outputs: any[][] = sourceConns[connType];
+            const outputs: N8nConnectionTarget[][] = sourceConns[connType] || [];
             for (const outputGroup of outputs) {
                 for (const conn of outputGroup) {
                     if (conn.node) {
@@ -205,9 +207,9 @@ function collectFromMap(
  * Shows node names, types, connections, and annotates the error node.
  * Includes total node count and estimated token cost for the full JSON.
  */
-export function getWorkflowMap(workflowJson: any, errorNode?: string): string {
-    const nodes: any[] = workflowJson?.nodes || [];
-    const connections = workflowJson?.connections || {};
+export function getWorkflowMap(workflowJson: N8nWorkflow, errorNode?: string): string {
+    const nodes: N8nWorkflowNode[] = workflowJson?.nodes || [];
+    const connections: N8nConnections = workflowJson?.connections || {};
     const forwardMap = buildForwardMap(connections);
     const estTokens = estimateTokens(workflowJson);
 
@@ -224,8 +226,8 @@ export function getWorkflowMap(workflowJson: any, errorNode?: string): string {
     });
 
     // Start with trigger/root nodes (no incoming connections), then list the rest
-    const rootNodes = nodes.filter((n: any) => !hasIncoming.has(n.name));
-    const nonRootNodes = nodes.filter((n: any) => hasIncoming.has(n.name));
+    const rootNodes = nodes.filter((n: N8nWorkflowNode) => !hasIncoming.has(n.name));
+    const nonRootNodes = nodes.filter((n: N8nWorkflowNode) => hasIncoming.has(n.name));
     const orderedNodes = [...rootNodes, ...nonRootNodes];
 
     for (const node of orderedNodes) {
@@ -246,17 +248,17 @@ export function getWorkflowMap(workflowJson: any, errorNode?: string): string {
  * Strip large non-essential fields from n8n workflow JSON before sending to AI.
  * Removes staticData (polling state, can be megabytes) and pinData (test data).
  */
-export function sanitizeWorkflowForAI(workflowJson: any): any {
+export function sanitizeWorkflowForAI(workflowJson: N8nWorkflow): N8nWorkflow {
     if (!workflowJson || typeof workflowJson !== 'object') return workflowJson;
-    const { staticData, pinData, ...clean } = workflowJson;
-    return clean;
+    const { staticData, pinData, ...clean } = workflowJson as N8nWorkflow & { pinData?: unknown };
+    return clean as N8nWorkflow;
 }
 
 /**
  * Estimate token count for a JSON object.
  * Uses ~4 characters per token as a rough heuristic.
  */
-export function estimateTokens(json: any): number {
+export function estimateTokens(json: unknown): number {
     try {
         const str = JSON.stringify(json);
         return Math.ceil(str.length / 4);
@@ -274,7 +276,7 @@ export function estimateTokens(json: any): number {
  * Each run has: { startTime, executionTime, source, data: { main: [[{json, binary?}]] } }
  */
 export function extractNodeResultsFromExecution(
-    executionData: any,
+    executionData: any, // n8n execution JSON — not typed in this boundary
     nodeNames: string[]
 ): Record<string, { input: any[]; output: any[]; error?: any }> {
     const results: Record<string, { input: any[]; output: any[]; error?: any }> = {};
@@ -348,14 +350,14 @@ export interface FixValidationResult {
  * - Required fields (name, type) are present
  */
 export function validateFixedNodes(
-    workflowJson: any,
-    fixedNodes: any[]
+    workflowJson: N8nWorkflow,
+    fixedNodes: N8nWorkflowNode[]
 ): FixValidationResult {
     const errors: string[] = [];
     const warnings: string[] = [];
-    const allNodes: any[] = workflowJson?.nodes || [];
-    const allNodeNames = new Set(allNodes.map((n: any) => n.name));
-    const originalByName = new Map(allNodes.map((n: any) => [n.name, n]));
+    const allNodes: N8nWorkflowNode[] = workflowJson?.nodes || [];
+    const allNodeNames = new Set(allNodes.map((n: N8nWorkflowNode) => n.name));
+    const originalByName = new Map<string, N8nWorkflowNode>(allNodes.map((n: N8nWorkflowNode) => [n.name, n]));
 
     for (const fixedNode of fixedNodes) {
         // Basic structure checks
