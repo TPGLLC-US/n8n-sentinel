@@ -9,6 +9,7 @@
 ### Security
 
 - **`ENCRYPTION_KEY` required in production** — Process throws when the env var is unset under `NODE_ENV=production`; dev fallback retained with a warning. `server/src/services/encryption.ts`
+- **Rate-limit `/api/auth/refresh` (5/min) and `/api/auth/logout` (10/min).** `server/src/middleware/rate-limit.ts`
 
 ### Fixed
 

@@ -15,7 +15,7 @@
 - `server/src/lib/safe-fetch.ts` — SSRF-hardened `fetch` wrapper for arbitrary user URLs (n8n webhooks, API keys verification).
 - `server/src/middleware/auth.ts` — HMAC signature verification for ingest; path-based instance resolution.
 - `server/src/middleware/validate.ts` — `validateUUID(param)` helper (400 on malformed UUIDs).
-- `server/src/middleware/rate-limit.ts` — `loginLimiter`, `diagnosisLimiter`.
+- `server/src/middleware/rate-limit.ts` — `loginLimiter`, `diagnosisLimiter`, `refreshLimiter`, `logoutLimiter`.
 
 **Auth model.** Stateless JWT Bearer tokens (HS256) with 1-hour access expiry (`lib/auth.ts:67`) and 7-day refresh tokens stored in Postgres as SHA-256 hashes (`lib/auth.ts:68`, `createRefreshToken` at `lib/auth.ts:86-97`). Refresh tokens are opaque 48-byte random base64url strings. No cookies are used — client stores tokens in memory/localStorage and attaches `Authorization: Bearer <jwt>` via `authFetch`. No cookies means no CSRF surface for the API.
 
@@ -40,8 +40,10 @@ Throws `SSRFError` on any violation; callers should treat SSRFError as a user-fa
 **Rate limits (`middleware/rate-limit.ts`).**
 - `loginLimiter` — 5 attempts / min / IP (`:4-10`).
 - `diagnosisLimiter` — 10 / min / IP, applied to Claude-powered endpoints (`:13-19`).
+- `refreshLimiter` — 5 / min / IP, applied to `POST /api/auth/refresh` to block brute-forcing refresh tokens (`:22-28`).
+- `logoutLimiter` — 10 / min / IP, applied to `POST /api/auth/logout` to cap revocation-path abuse (`:31-37`).
 
-(Refresh/logout rate limits are planned for Phase 2b.)
+(Refresh/logout rate limits added in Phase 2b.)
 
 **Data flow (login → authenticated request).**
 1. Client posts `{email, password}` to `/api/login`.

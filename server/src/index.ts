@@ -5,7 +5,7 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { checkDatabaseHealth } from './db';
 import { getSessionSecret, seedAdminUser } from './lib/auth';
-import { loginLimiter } from './middleware/rate-limit';
+import { loginLimiter, refreshLimiter, logoutLimiter } from './middleware/rate-limit';
 
 dotenv.config(); // try CWD/.env
 dotenv.config({ path: path.resolve(process.cwd(), '..', '.env') }); // fallback: monorepo root
@@ -84,8 +84,8 @@ import { startDataRetention } from './services/data-retention';
 import { startScheduler, stopScheduler } from './services/scheduler';
 
 app.post('/api/login', loginLimiter, login);
-app.post('/api/auth/refresh', refresh);
-app.post('/api/auth/logout', logoutHandler);
+app.post('/api/auth/refresh', refreshLimiter, refresh);
+app.post('/api/auth/logout', logoutLimiter, logoutHandler);
 
 // Public Routes — Per-instance ingest paths (preferred)
 app.use('/:accountToken/:instanceToken/ingest', validateIngestPath, ingestRouter);
