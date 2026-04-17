@@ -1,6 +1,6 @@
 const trigger = $('Route Telemetry').first().json.telemetry_type;
 
-const SENTINEL_URL = 'YOUR_WEBHOOK_URL';
+const SENTINEL_URL = 'YOUR_SENTINEL_URL';
 const INSTANCE_ID = 'YOUR_INSTANCE_ID';
 const nonce = Date.now().toString(36) + '-' + Math.random().toString(36).slice(2);
 
@@ -8,11 +8,9 @@ const nonce = Date.now().toString(36) + '-' + Math.random().toString(36).slice(2
 // Handles both single-page and paginated (multi-page) responses
 function unwrapApiResponse(items) {
   const raw = items.map(i => i.json);
-  // Single item with a data array (single page or no pagination)
   if (raw.length === 1 && raw[0].data && Array.isArray(raw[0].data)) {
     return raw[0].data;
   }
-  // Multiple items each with a data array (paginated response)
   if (raw.length > 1 && raw[0].data && Array.isArray(raw[0].data)) {
     return raw.flatMap(r => r.data || []);
   }
@@ -20,7 +18,6 @@ function unwrapApiResponse(items) {
 }
 
 // Read real n8n settings (populated on heartbeat path via Get n8n Settings node)
-// Response shape: { data: { versionCli, timezone, ... } }
 let n8nSettings = {};
 try {
   const raw = $('Get n8n Settings').first().json;
@@ -28,7 +25,6 @@ try {
 } catch(e) {}
 
 // Detect database type via Postgres probe (continueOnFail node)
-// If the probe succeeded, the n8n instance uses Postgres. If it failed, assume unknown/sqlite.
 let dbType = null;
 try {
   const dbProbe = $('Detect DB Type').first().json;
@@ -66,7 +62,6 @@ if (trigger === 'configuration') {
   }
 } else if (trigger === 'executions' || trigger === 'manual') {
   try {
-    // Process Executions already unwrapped API response and extracted tokens
     const execItems = $('Process Executions').all().map(i => i.json);
     payload.data.executions = execItems;
   } catch (e) {
@@ -75,7 +70,6 @@ if (trigger === 'configuration') {
 } else if (trigger === 'error') {
   try {
     const raw = $('Error Trigger').first().json;
-    // n8n Error Trigger shape: { execution: { id, error, lastNodeExecuted, mode, startedAt, stoppedAt }, workflow: { id, name } }
     const exec = raw.execution || {};
     const wf = raw.workflow || {};
     const errObj = exec.error || {};

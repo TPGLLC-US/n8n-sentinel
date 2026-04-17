@@ -8,6 +8,7 @@
         "dev": "concurrently \"npm run dev --prefix server\" \"npm run dev --prefix client -- --host\"",
         "build:workflow": "node workflow/build.js",
         "build": "npm run build:workflow && npm run build --prefix server && npm run build --prefix client",
+        "test": "npm test --prefix server",
         "start": "npm start --prefix server",
         "install:all": "npm install && npm install --prefix server && npm install --prefix client"
     },

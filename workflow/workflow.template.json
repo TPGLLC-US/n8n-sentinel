@@ -3,85 +3,42 @@
   "nodes": [
     {
       "parameters": {
-        "rule": {
-          "interval": [
-            {
-              "field": "minutes",
-              "minutes": 5
-            }
-          ]
-        }
-      },
-      "id": "schedule-heartbeat",
-      "name": "Heartbeat (5m)",
-      "type": "n8n-nodes-base.scheduleTrigger",
-      "typeVersion": 1,
-      "position": [200, 200]
-    },
-    {
-      "parameters": {
-        "rule": {
-          "interval": [
-            {
-              "field": "hours",
-              "hours": 8
-            }
-          ]
-        }
-      },
-      "id": "schedule-executions",
-      "name": "Executions (8h)",
-      "type": "n8n-nodes-base.scheduleTrigger",
-      "typeVersion": 1,
-      "position": [200, 400]
-    },
-    {
-      "parameters": {
-        "rule": {
-          "interval": [
-            {
-              "field": "hours",
-              "hours": 6
-            }
-          ]
-        }
-      },
-      "id": "schedule-config",
-      "name": "Config (6h)",
-      "type": "n8n-nodes-base.scheduleTrigger",
-      "typeVersion": 1,
-      "position": [200, 600]
-    },
-    {
-      "parameters": {
         "httpMethod": "POST",
         "path": "manual-sync",
         "options": {}
       },
-      "id": "webhook-manual",
-      "name": "Manual Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [200, 800]
+      "position": [
+        192,
+        640
+      ],
+      "id": "4de8e96a-fcba-4922-bfbf-9cccd7cfe03e",
+      "name": "Manual Webhook"
     },
     {
       "parameters": {},
-      "id": "error-trigger",
-      "name": "Error Trigger",
       "type": "n8n-nodes-base.errorTrigger",
       "typeVersion": 1,
-      "position": [200, 1000]
+      "position": [
+        192,
+        832
+      ],
+      "id": "4c5f302b-45c7-43c9-aec0-d43343ab15f6",
+      "name": "Error Trigger"
     },
     {
       "parameters": {
-        "mode": "runOnceForAllItems",
         "jsCode": "{{SCRIPT:route-telemetry}}"
       },
-      "id": "route-telemetry",
-      "name": "Route Telemetry",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [400, 600]
+      "position": [
+        416,
+        432
+      ],
+      "id": "249b8b30-ad10-43c0-9a2d-d4393dbdad3a",
+      "name": "Route Telemetry"
     },
     {
       "parameters": {
@@ -96,46 +53,14 @@
         },
         "combineOperation": "any"
       },
-      "id": "if-config",
-      "name": "Is Config Sync?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [600, 500]
-    },
-    {
-      "parameters": {
-        "url": "http://127.0.0.1:5678/api/v1/workflows?limit=250",
-        "authentication": "predefinedCredentialType",
-        "nodeCredentialType": "n8nApi",
-        "options": {
-          "pagination": {
-            "paginationMode": "updateAParameterInEachRequest",
-            "parameters": {
-              "parameters": [
-                {
-                  "type": "queryParameter",
-                  "name": "cursor",
-                  "value": "={{ $response.body.nextCursor }}"
-                }
-              ]
-            },
-            "paginationCompleteWhen": "other",
-            "completeExpression": "={{ !$response.body.nextCursor }}",
-            "maxRequests": 20
-          }
-        }
-      },
-      "id": "get-workflows",
-      "name": "Get Workflows",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [800, 400],
-      "credentials": {
-        "n8nApi": {
-          "id": "YOUR_CRED_ID",
-          "name": "n8n account"
-        }
-      }
+      "position": [
+        656,
+        256
+      ],
+      "id": "76339986-0d46-4eb5-ab6b-d6882cf7cb26",
+      "name": "Is Config Sync?"
     },
     {
       "parameters": {
@@ -155,74 +80,27 @@
         },
         "combineOperation": "any"
       },
-      "id": "if-executions",
-      "name": "Is Executions Sync?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [600, 700]
+      "position": [
+        672,
+        432
+      ],
+      "id": "a5c61bad-08a0-44ed-a04f-21a7572df82f",
+      "name": "Is Executions Sync?"
     },
     {
       "parameters": {
-        "url": "http://127.0.0.1:5678/api/v1/executions?limit=250",
-        "authentication": "predefinedCredentialType",
-        "nodeCredentialType": "n8nApi",
-        "options": {
-          "pagination": {
-            "paginationMode": "updateAParameterInEachRequest",
-            "parameters": {
-              "parameters": [
-                {
-                  "type": "queryParameter",
-                  "name": "cursor",
-                  "value": "={{ $response.body.nextCursor }}"
-                }
-              ]
-            },
-            "paginationCompleteWhen": "other",
-            "completeExpression": "={{ !$response.body.nextCursor }}",
-            "maxRequests": 10
-          }
-        }
-      },
-      "id": "get-executions",
-      "name": "Get Executions",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [1000, 600],
-      "credentials": {
-        "n8nApi": {
-          "id": "YOUR_CRED_ID",
-          "name": "n8n account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "{{SQL:token-extraction}}"
-      },
-      "id": "get-token-data",
-      "name": "Get Token Data",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [1100, 700],
-      "credentials": {
-        "postgres": {
-          "id": "YOUR_N8N_DB_CRED_ID",
-          "name": "n8n Database"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "mode": "runOnceForAllItems",
         "jsCode": "{{SCRIPT:process-executions}}"
       },
-      "id": "process-executions",
-      "name": "Process Executions",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1200, 600]
+      "position": [
+        1792,
+        416
+      ],
+      "id": "a4506a05-59aa-4262-950f-7814769dc856",
+      "name": "Process Executions"
     },
     {
       "parameters": {
@@ -237,59 +115,81 @@
         },
         "combineOperation": "any"
       },
-      "id": "if-heartbeat",
-      "name": "Is Heartbeat?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [600, 900]
+      "position": [
+        640,
+        80
+      ],
+      "id": "00d0cb2c-f109-454e-bc64-45a1b1eb924a",
+      "name": "Is Heartbeat?"
     },
     {
       "parameters": {
-        "url": "http://127.0.0.1:5678/rest/settings",
+        "url": "YOUR_N8N_URL/rest/settings",
         "authentication": "predefinedCredentialType",
         "nodeCredentialType": "n8nApi",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "env",
+              "value": "={{JSON.stringify($env)}}"
+            }
+          ]
+        },
         "options": {}
       },
-      "id": "get-n8n-settings",
-      "name": "Get n8n Settings",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [800, 900],
+      "position": [
+        976,
+        64
+      ],
+      "id": "692833c1-bd0f-49f8-a60f-f4052d792acc",
+      "name": "Get n8n Settings",
       "credentials": {
         "n8nApi": {
-          "id": "YOUR_CRED_ID",
-          "name": "n8n account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT 'postgresdb' as database_type, version() as db_version"
-      },
-      "id": "detect-db-type",
-      "name": "Detect DB Type",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [900, 900],
-      "credentials": {
-        "postgres": {
-          "id": "YOUR_N8N_DB_CRED_ID",
-          "name": "n8n Database"
+          "id": "",
+          "name": ""
         }
       },
       "continueOnFail": true
     },
     {
       "parameters": {
-        "mode": "runOnceForAllItems",
+        "operation": "executeQuery",
+        "query": "SELECT 'postgresdb' as database_type, version() as db_version",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1280,
+        64
+      ],
+      "id": "ebcdc59d-cbef-4ec8-9d54-b1c122489a1d",
+      "name": "Detect DB Type",
+      "credentials": {
+        "postgres": {
+          "id": "",
+          "name": ""
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
         "jsCode": "{{SCRIPT:build-payload}}"
       },
-      "id": "build-payload",
-      "name": "Build Payload",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1400, 600]
+      "position": [
+        2416,
+        432
+      ],
+      "id": "ab59e9a6-31a0-409a-b424-edfccb712b6f",
+      "name": "Build Payload"
     },
     {
       "parameters": {
@@ -299,11 +199,14 @@
         "secret": "YOUR_HMAC_SECRET",
         "encoding": "base64"
       },
-      "id": "sign-hmac",
-      "name": "Sign HMAC",
       "type": "n8n-nodes-base.crypto",
       "typeVersion": 1,
-      "position": [1600, 600]
+      "position": [
+        2624,
+        432
+      ],
+      "id": "165dafde-eea8-4b8c-a182-806db1e4b5d9",
+      "name": "Sign HMAC"
     },
     {
       "parameters": {
@@ -329,70 +232,442 @@
           "timeout": 30000
         }
       },
-      "id": "send-to-sentinel",
-      "name": "Send to Sentinel",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1800, 600]
+      "position": [
+        2816,
+        432
+      ],
+      "id": "8dc08860-1e9d-4743-9c3f-74cdf69f9ceb",
+      "name": "Send to Sentinel"
+    },
+    {
+      "parameters": {
+        "resource": "execution",
+        "returnAll": true,
+        "filters": {
+          "status": "success"
+        },
+        "options": {},
+        "requestOptions": {}
+      },
+      "type": "n8n-nodes-base.n8n",
+      "typeVersion": 1,
+      "position": [
+        896,
+        432
+      ],
+      "id": "4433d4b6-2155-4fe1-a83c-e1036c1a8a90",
+      "name": "Get Executions",
+      "credentials": {
+        "n8nApi": {
+          "id": "",
+          "name": ""
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "filters": {},
+        "requestOptions": {}
+      },
+      "type": "n8n-nodes-base.n8n",
+      "typeVersion": 1,
+      "position": [
+        976,
+        240
+      ],
+      "id": "e5ed4b58-85b9-4a67-a84b-c7b1ce003fff",
+      "name": "Get Workflows",
+      "credentials": {
+        "n8nApi": {
+          "id": "",
+          "name": ""
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "batchSize": 5,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        1296,
+        432
+      ],
+      "id": "35aa2df9-c750-4da1-8000-b890b098d4b1",
+      "name": "Loop Over Items1"
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        1568,
+        416
+      ],
+      "id": "a7a1c304-f4b6-4442-9be3-9f44ba4ab735",
+      "name": "Aggregate1"
+    },
+    {
+      "parameters": {
+        "resource": "execution",
+        "operation": "get",
+        "executionId": "={{ $json.id }}",
+        "options": {
+          "activeWorkflows": true
+        },
+        "requestOptions": {}
+      },
+      "type": "n8n-nodes-base.n8n",
+      "typeVersion": 1,
+      "position": [
+        1472,
+        560
+      ],
+      "id": "90757202-42d4-4a2e-a07a-3f2dcd5d7371",
+      "name": "Get an execution",
+      "credentials": {
+        "n8nApi": {
+          "id": "",
+          "name": ""
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "{{SCRIPT:extract-tokens}}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1648,
+        560
+      ],
+      "id": "c844b96d-ae25-42e3-9b82-32b7fe63418c",
+      "name": "Extract Tokens"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 3
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        192,
+        240
+      ],
+      "id": "1c04c746-555c-4531-9944-6d585017cc13",
+      "name": "Config (3h)"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 3,
+              "triggerAtMinute": 15
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        192,
+        432
+      ],
+      "id": "4ef01589-004f-42cf-935d-f2e75b698028",
+      "name": "Executions (3h)"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 15
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        192,
+        64
+      ],
+      "id": "94671649-aa49-4ce5-b949-7f1b267d9d8c",
+      "name": "Heartbeat (15m)"
     }
   ],
   "connections": {
-    "Heartbeat (5m)": { "main": [[ { "node": "Route Telemetry", "type": "main", "index": 0 } ]] },
-    "Executions (8h)": { "main": [[ { "node": "Route Telemetry", "type": "main", "index": 0 } ]] },
-    "Config (6h)": { "main": [[ { "node": "Route Telemetry", "type": "main", "index": 0 } ]] },
-    "Manual Webhook": { "main": [[ { "node": "Route Telemetry", "type": "main", "index": 0 } ]] },
-    "Error Trigger": { "main": [[ { "node": "Route Telemetry", "type": "main", "index": 0 } ]] },
+    "Manual Webhook": {
+      "main": [
+        [
+          {
+            "node": "Route Telemetry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Route Telemetry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
     "Route Telemetry": {
-      "main": [[
-        { "node": "Is Config Sync?", "type": "main", "index": 0 },
-        { "node": "Is Executions Sync?", "type": "main", "index": 0 },
-        { "node": "Is Heartbeat?", "type": "main", "index": 0 }
-      ]]
+      "main": [
+        [
+          {
+            "node": "Is Config Sync?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Is Executions Sync?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Is Heartbeat?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Is Config Sync?": {
       "main": [
-        [{ "node": "Get Workflows", "type": "main", "index": 0 }],
-        [{ "node": "Build Payload", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Get Workflows",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
       ]
-    },
-    "Get Workflows": {
-      "main": [[ { "node": "Build Payload", "type": "main", "index": 0 } ]]
     },
     "Is Executions Sync?": {
       "main": [
-        [{ "node": "Get Executions", "type": "main", "index": 0 }],
-        []
+        [
+          {
+            "node": "Get Executions",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
-    "Get Executions": {
-      "main": [[ { "node": "Get Token Data", "type": "main", "index": 0 } ]]
-    },
-    "Get Token Data": {
-      "main": [[ { "node": "Process Executions", "type": "main", "index": 0 } ]]
-    },
     "Process Executions": {
-      "main": [[ { "node": "Build Payload", "type": "main", "index": 0 } ]]
+      "main": [
+        [
+          {
+            "node": "Build Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Is Heartbeat?": {
       "main": [
-        [{ "node": "Get n8n Settings", "type": "main", "index": 0 }],
-        []
+        [
+          {
+            "node": "Get n8n Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Get n8n Settings": {
-      "main": [[ { "node": "Detect DB Type", "type": "main", "index": 0 } ]]
+      "main": [
+        [
+          {
+            "node": "Detect DB Type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Detect DB Type": {
-      "main": [[ { "node": "Build Payload", "type": "main", "index": 0 } ]]
+      "main": [
+        [
+          {
+            "node": "Build Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Build Payload": {
-      "main": [[ { "node": "Sign HMAC", "type": "main", "index": 0 } ]]
+      "main": [
+        [
+          {
+            "node": "Sign HMAC",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Sign HMAC": {
-      "main": [[ { "node": "Send to Sentinel", "type": "main", "index": 0 } ]]
+      "main": [
+        [
+          {
+            "node": "Send to Sentinel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Executions": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Workflows": {
+      "main": [
+        [
+          {
+            "node": "Build Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items1": {
+      "main": [
+        [
+          {
+            "node": "Aggregate1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get an execution",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate1": {
+      "main": [
+        [
+          {
+            "node": "Process Executions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get an execution": {
+      "main": [
+        [
+          {
+            "node": "Extract Tokens",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Tokens": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config (3h)": {
+      "main": [
+        [
+          {
+            "node": "Route Telemetry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Executions (3h)": {
+      "main": [
+        [
+          {
+            "node": "Route Telemetry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Heartbeat (15m)": {
+      "main": [
+        [
+          {
+            "node": "Route Telemetry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
+  "active": false,
   "settings": {
-    "executionOrder": "v1"
-  }
+    "executionOrder": "v1",
+    "timeSavedMode": "fixed",
+    "saveDataErrorExecution": "none",
+    "saveDataSuccessExecution": "none",
+    "saveExecutionProgress": true,
+    "saveManualExecutions": false,
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "versionId": "00538bc4-ae56-4b33-b837-b2962de8ef55",
+  "tags": []
 }

@@ -1,5 +1,11 @@
 /**
- * Token Usage Forecasting Service
+ * Short-term execution forecasts using Holt–Winters additive triple exponential smoothing.
+ *
+ * Why Holt–Winters:
+ *   - Workflow execution volume has daily/weekly seasonality.
+ *   - HW captures level + trend + seasonality without training data assembly.
+ *   - `backtestNaive` is kept as a floor check: if HW does worse than naïve-last-period,
+ *     fall back to naïve so we never publish a worse forecast than no model at all.
  *
  * Implements:
  *   1. Additive Holt-Winters (triple exponential smoothing, season=24h)

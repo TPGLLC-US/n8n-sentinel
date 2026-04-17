@@ -1,4 +1,5 @@
 import dns from 'dns/promises';
+import { TIMEOUTS } from '../config/timeouts';
 
 // ─── Blocked IP ranges ──────────────────────────────────────────────────
 
@@ -16,11 +17,11 @@ const BLOCKED_CIDRS: CIDRBlock[] = [
     { prefix: [0, 0, 0, 0], bits: 8 },       // "this" network
 ];
 
-function ipToInt(octets: number[]): number {
+export function ipToInt(octets: number[]): number {
     return ((octets[0] << 24) | (octets[1] << 16) | (octets[2] << 8) | octets[3]) >>> 0;
 }
 
-function isBlockedIPv4(ip: string): boolean {
+export function isBlockedIPv4(ip: string): boolean {
     const parts = ip.split('.').map(Number);
     if (parts.length !== 4 || parts.some(p => isNaN(p) || p < 0 || p > 255)) return true;
     const ipInt = ipToInt(parts);
@@ -31,7 +32,7 @@ function isBlockedIPv4(ip: string): boolean {
     return false;
 }
 
-function isBlockedIPv6(ip: string): boolean {
+export function isBlockedIPv6(ip: string): boolean {
     const lower = ip.toLowerCase();
     if (lower === '::1') return true;
     if (lower.startsWith('fc') || lower.startsWith('fd')) return true;  // fc00::/7
@@ -44,7 +45,7 @@ function isBlockedIPv6(ip: string): boolean {
     return false;
 }
 
-function isBlockedIP(ip: string): boolean {
+export function isBlockedIP(ip: string): boolean {
     return ip.includes(':') ? isBlockedIPv6(ip) : isBlockedIPv4(ip);
 }
 
@@ -62,7 +63,7 @@ export async function safeFetch(
     options: RequestInit = {},
     opts: { timeoutMs?: number; maxResponseBytes?: number; allowHttp?: boolean } = {}
 ): Promise<Response> {
-    const { timeoutMs = 8000, allowHttp = false } = opts;
+    const { timeoutMs = TIMEOUTS.safeFetchDefault, allowHttp = false } = opts;
 
     // 1. Parse and validate URL
     let parsed: URL;

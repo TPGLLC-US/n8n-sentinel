@@ -21,12 +21,15 @@ const ingestLimiter = rateLimit({
 const NONCE_TTL_MINUTES = 10;
 const TIMESTAMP_TOLERANCE_MS = 5 * 60 * 1000; // 5 minutes
 
+export function nonceFormatIsValid(nonce: string): boolean {
+    return /^[a-zA-Z0-9_-]{16,64}$/.test(nonce);
+}
+
 async function validateReplayProtection(
     nonce: string | undefined,
     timestamp: string | undefined,
-    instanceId: string
+    instanceId: string,
 ): Promise<string | null> {
-    // Timestamp validation
     if (timestamp) {
         const ts = new Date(timestamp).getTime();
         if (isNaN(ts)) return 'Invalid timestamp format';
@@ -36,29 +39,16 @@ async function validateReplayProtection(
         }
     }
 
-    // Nonce validation (if provided)
-    if (nonce) {
-        // Check nonce format: 8-64 chars, alphanumeric + hyphens/underscores
-        if (!/^[a-zA-Z0-9_-]{8,64}$/.test(nonce)) {
-            return 'Invalid nonce format';
-        }
-        // Check for replay
-        const existing = await query(
-            'SELECT nonce FROM nonce_cache WHERE nonce = $1',
-            [nonce]
-        );
-        if (existing.rows.length > 0) {
-            return 'Nonce already used (replay detected)';
-        }
-        // Store nonce
-        const expiresAt = new Date(Date.now() + NONCE_TTL_MINUTES * 60 * 1000);
-        await query(
-            'INSERT INTO nonce_cache (nonce, instance_id, expires_at) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING',
-            [nonce, instanceId, expiresAt]
-        );
-    }
+    if (!nonce) return 'Missing nonce';
+    if (!nonceFormatIsValid(nonce)) return 'Invalid nonce format';
 
-    return null; // valid
+    const expiresAt = new Date(Date.now() + NONCE_TTL_MINUTES * 60 * 1000);
+    const result = await query(
+        'INSERT INTO nonce_cache (nonce, instance_id, expires_at) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING RETURNING nonce',
+        [nonce, instanceId, expiresAt],
+    );
+    if (result.rows.length === 0) return 'Nonce already used (replay detected)';
+    return null;
 }
 
 // POST /api/ingest - Receive telemetry

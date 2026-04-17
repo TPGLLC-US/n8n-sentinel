@@ -17,26 +17,26 @@ export const AlertType = {
     HEARTBEAT_AFTER_ROTATION: 'heartbeat_after_rotation'
 };
 
+export function createAlertInsertQuery(): string {
+    return `INSERT INTO alerts (alert_type, severity, message, instance_id)
+            VALUES ($1, $2, $3, $4)
+            ON CONFLICT DO NOTHING
+            RETURNING id, triggered_at`;
+}
+
 export async function createAlert(alertType: string, message: string, instanceId: string, severity: string = 'warning') {
-    // Prevent duplicate active alerts for the same instance and type
-    const existing = await query(
-        `SELECT id FROM alerts WHERE alert_type = $1 AND instance_id = $2 AND acknowledged_at IS NULL`,
-        [alertType, instanceId]
-    );
-
-    if (existing.rows.length > 0) {
-        return; // Alert already active
+    const result = await query(createAlertInsertQuery(), [alertType, severity, message, instanceId]);
+    if (result.rows.length === 0) {
+        return; // Duplicate active alert — ignored by the partial unique index.
     }
-
-    const result = await query(
-        `INSERT INTO alerts (alert_type, severity, message, instance_id) VALUES ($1, $2, $3, $4) RETURNING id, triggered_at`,
-        [alertType, severity, message, instanceId]
-    );
     console.log(`CREATED ALERT: [${alertType}] ${message}`);
-
-    // Send email notification (fire-and-forget)
-    sendAlertEmail(alertType, severity, message, instanceId, result.rows[0]?.triggered_at).catch((err: any) => {
+    sendAlertEmail(alertType, severity, message, instanceId, result.rows[0].triggered_at).catch((err: any) => {
         console.error('[alert-email] Failed to send:', err.message);
+        recordEmailFailure({
+            alertType, severity, message, instanceId,
+            triggeredAt: new Date(result.rows[0].triggered_at),
+            errorMessage: err?.message || String(err),
+        });
     });
 }
 
@@ -100,11 +100,6 @@ export async function checkHeartbeats() {
             'critical'
         );
     }
-}
-
-// Placeholder for error rate check (requires aggregating execution logs)
-export async function checkErrorRates() {
-    // console.log('Running Error Rate Check... (Not implemented yet)');
 }
 
 // --- WORKFLOW THRESHOLD CHECKS ---
@@ -261,3 +256,31 @@ const alertTypeLabels: Record<string, string> = {
     instance_url_mismatch: 'Instance URL Mismatch',
     reporter_outdated: 'Reporter Outdated',
 };
+
+interface EmailFailureRecord {
+    alertType: string;
+    severity: string;
+    message: string;
+    instanceId: string;
+    triggeredAt: Date;
+    errorMessage: string;
+}
+
+export const recordEmailFailure = Object.assign(
+    async function (rec: EmailFailureRecord): Promise<void> {
+        const { sql, values } = recordEmailFailure.buildQuery(rec);
+        await query(sql, values).catch(err => {
+            console.error('[alert-email] Failed to persist failure record:', err);
+        });
+    },
+    {
+        buildQuery(rec: EmailFailureRecord) {
+            return {
+                sql: `INSERT INTO alert_email_attempts
+                      (alert_type, severity, message, instance_id, triggered_at, status, error_message)
+                      VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+                values: [rec.alertType, rec.severity, rec.message, rec.instanceId, rec.triggeredAt, 'failed', rec.errorMessage],
+            };
+        },
+    }
+);

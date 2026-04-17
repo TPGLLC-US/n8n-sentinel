@@ -2,6 +2,7 @@ import { query } from '../db';
 import { getSetting } from '../routes/settings';
 import { decrypt } from './encryption';
 import { safeFetch } from '../lib/safe-fetch';
+import { TIMEOUTS } from '../config/timeouts';
 import { runAgentLoop, AgentTool } from './ai-agent';
 import {
     extractNodesFromWorkflow,
@@ -140,7 +141,8 @@ async function callAnthropicApi(apiKey: string, systemPrompt: string, userMessag
 
     if (!res.ok) {
         const body = await res.text().catch(() => '');
-        throw new Error(`Anthropic API error (${res.status}): ${body}`);
+        const preview = body.slice(0, 200).replace(/"(x-api-key|authorization)"\s*:\s*"[^"]*"/gi, '"$1":"[redacted]"');
+        throw new Error(`Anthropic API error (${res.status}): ${preview}`);
     }
 
     const data = await res.json();
@@ -178,7 +180,7 @@ async function fetchWorkflowFromN8n(baseUrl: string, apiKey: string, workflowRem
             'X-N8N-API-KEY': apiKey,
             'Accept': 'application/json',
         },
-    }, { timeoutMs: 15000, allowHttp: process.env.NODE_ENV !== 'production' });
+    }, { timeoutMs: TIMEOUTS.n8nApiRead, allowHttp: process.env.NODE_ENV !== 'production' });
     if (!res.ok) {
         const body = await res.text().catch(() => '');
         throw new Error(`Failed to fetch workflow from n8n (${res.status}): ${body}`);
@@ -204,7 +206,7 @@ async function applyFixToN8n(baseUrl: string, apiKey: string, workflowRemoteId: 
             'Content-Type': 'application/json',
         },
         body: JSON.stringify(payload),
-    }, { timeoutMs: 15000, allowHttp: process.env.NODE_ENV !== 'production' });
+    }, { timeoutMs: TIMEOUTS.n8nApiRead, allowHttp: process.env.NODE_ENV !== 'production' });
     if (!res.ok) {
         const body = await res.text().catch(() => '');
         throw new Error(`Failed to apply fix to n8n (${res.status}): ${body}`);
@@ -226,7 +228,7 @@ async function fetchExecutionFromN8n(baseUrl: string, apiKey: string, remoteExec
             'X-N8N-API-KEY': safeKey,
             'Accept': 'application/json',
         },
-    }, { timeoutMs: 10000, allowHttp: process.env.NODE_ENV !== 'production' });
+    }, { timeoutMs: TIMEOUTS.n8nApiExecution, allowHttp: process.env.NODE_ENV !== 'production' });
     if (!res.ok) {
         console.warn(`[enrich] n8n API returned ${res.status} for execution ${remoteExecutionId}`);
         return null;

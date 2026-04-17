@@ -258,7 +258,8 @@ async function callAnthropic(opts: {
 
     if (!res.ok) {
         const errorBody = await res.text().catch(() => '');
-        throw new Error(`Anthropic API error (${res.status}): ${errorBody}`);
+        const preview = errorBody.slice(0, 200).replace(/"(x-api-key|authorization)"\s*:\s*"[^"]*"/gi, '"$1":"[redacted]"');
+        throw new Error(`Anthropic API error (${res.status}): ${preview}`);
     }
 
     return res.json() as Promise<AnthropicApiResponse>;

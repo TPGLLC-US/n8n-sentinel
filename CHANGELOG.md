@@ -1,5 +1,38 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- **Jest test suite** — Server-side Jest + `ts-jest` + `supertest` scaffold at `server/jest.config.ts`; first specs cover `safe-fetch` IPv4/IPv6 blocklist. Run via `npm test`.
+
+### Changed
+
+- **Typed n8n workflow boundary** — `workflow-utils.ts` and its callers now use `N8nWorkflow`/`N8nWorkflowNode`/`N8nConnections` instead of `any`. Schema drift surfaces at compile time. `server/src/services/workflow-utils.ts`, `server/src/services/n8n-types.ts`
+- **Client util dedupe** — `formatDuration` consolidated into `client/src/lib/format.ts`.
+- **Configurable timeouts** — `safe-fetch` and n8n API calls now read defaults from `TIMEOUT_SAFE_FETCH_MS`, `TIMEOUT_N8N_READ_MS`, `TIMEOUT_N8N_EXEC_READ_MS` env vars. `server/src/config/timeouts.ts`
+- **Reports: parameterize `INTERVAL`** — Replace string-interpolated `INTERVAL '${...}'` fragments with bound `$N::interval` parameters. No behavior change; removes a future SQLi landmine. `server/src/services/reports.ts`
+- **Drop unused `cookie-parser` dependency.**
+- **a11y** — Icon-only buttons across the client now carry `aria-label`s.
+
+### Security
+
+- **`ENCRYPTION_KEY` required in production** — Process throws when the env var is unset under `NODE_ENV=production`; dev fallback retained with a warning. `server/src/services/encryption.ts`
+- **Rate-limit `/api/auth/refresh` (5/min) and `/api/auth/logout` (10/min).** `server/src/middleware/rate-limit.ts`
+- **Refresh rejects deactivated users** — `/api/auth/refresh` now verifies `users.is_active = TRUE`; refresh token is revoked when the user cannot be returned. `server/src/middleware/session.ts`
+- **Require nonce on ingest** + INSERT-first deduplication — replay attacks now blocked at the entry path even if payload capture occurs. Nonces must be 16–64 chars alphanumeric (stricter than previous 8-char minimum). `server/src/routes/ingest.ts`
+- **Truncate + redact Anthropic error bodies** — API error messages now cap at 200 chars and redact any `x-api-key`/`authorization` field values.
+
+### Fixed
+
+- **Scheduler lifecycle** — Heartbeat interval is now cleanable on shutdown, boot failures in one scheduler don't block others, and `SIGTERM`/`SIGINT` trigger graceful HTTP close. `server/src/services/scheduler.ts`, `server/src/index.ts`
+- **Duplicate active alerts** — TOCTOU race in `createAlert` (SELECT-then-INSERT) eliminated by a partial unique index on `(alert_type, instance_id) WHERE acknowledged_at IS NULL`, combined with `ON CONFLICT DO NOTHING`. Migration backfills any existing duplicates before the index is built. `server/migrations/`, `server/src/services/alerts.ts`
+- **Alert email failures are now persisted** to `alert_email_attempts` so outages are auditable and retriable. `server/src/services/alerts.ts`
+
+### Removed
+
+- **Dead `checkErrorRates` stub** removed from `services/alerts.ts`.
+
 ## [0.3.1] - 2026-03-08
 
 ### Fixed — Error Enrichment & Data Ingestion

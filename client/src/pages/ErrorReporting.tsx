@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { authFetch } from '../lib/auth';
 import { safeHref } from '../lib/safe-href';
+import { formatDuration } from '../lib/format';
 import {
     useReactTable,
     getCoreRowModel,
@@ -55,13 +56,6 @@ interface ErrorStats {
     top_failing_workflows: { workflow_name: string; remote_id: string; instance_name: string; instance_id: string; error_count: number }[];
     top_failing_nodes: { error_node: string; error_count: number }[];
     diagnosis_stats: { diagnosed: number; diagnosed_24h: number; thumbs_up: number; thumbs_down: number };
-}
-
-function formatDuration(ms: number | null): string {
-    if (!ms) return '-';
-    if (ms < 1000) return `${ms}ms`;
-    if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`;
-    return `${(ms / 60000).toFixed(1)}m`;
 }
 
 function timeAgo(dateStr: string): string {
@@ -436,10 +430,10 @@ export default function ErrorReporting() {
                                 <option key={size} value={size}>{size} / page</option>
                             ))}
                         </select>
-                        <button onClick={() => table.previousPage()} disabled={!table.getCanPreviousPage()} className="p-1.5 rounded hover:bg-accent disabled:opacity-30 disabled:cursor-not-allowed transition-colors duration-150">
+                        <button onClick={() => table.previousPage()} disabled={!table.getCanPreviousPage()} aria-label="Previous page" className="p-1.5 rounded hover:bg-accent disabled:opacity-30 disabled:cursor-not-allowed transition-colors duration-150">
                             <ChevronLeft size={16} />
                         </button>
-                        <button onClick={() => table.nextPage()} disabled={!table.getCanNextPage()} className="p-1.5 rounded hover:bg-accent disabled:opacity-30 disabled:cursor-not-allowed transition-colors duration-150">
+                        <button onClick={() => table.nextPage()} disabled={!table.getCanNextPage()} aria-label="Next page" className="p-1.5 rounded hover:bg-accent disabled:opacity-30 disabled:cursor-not-allowed transition-colors duration-150">
                             <ChevronRight size={16} />
                         </button>
                     </div>
@@ -581,6 +575,7 @@ function DiagnosisPanel({ diagnosis, errorId, initialRating }: { diagnosis: Erro
                                     onClick={() => handleFeedback('up')}
                                     className="p-1 rounded hover:bg-emerald-500/10 text-white/60 hover:text-emerald-400 transition-colors"
                                     title="Good diagnosis"
+                                    aria-label="Good diagnosis"
                                 >
                                     <ThumbsUp size={12} />
                                 </button>
@@ -588,6 +583,7 @@ function DiagnosisPanel({ diagnosis, errorId, initialRating }: { diagnosis: Erro
                                     onClick={() => handleFeedback('down')}
                                     className="p-1 rounded hover:bg-red-500/10 text-white/60 hover:text-red-400 transition-colors"
                                     title="Poor diagnosis"
+                                    aria-label="Poor diagnosis"
                                 >
                                     <ThumbsDown size={12} />
                                 </button>
@@ -606,6 +602,7 @@ function DiagnosisPanel({ diagnosis, errorId, initialRating }: { diagnosis: Erro
                             <button
                                 onClick={() => { setShowCommentModal(false); setPendingRating(null); }}
                                 className="p-1 rounded hover:bg-accent text-muted-foreground"
+                                aria-label="Close"
                             >
                                 <X size={14} />
                             </button>

@@ -79,14 +79,15 @@ export default function InstanceDetail() {
             const response = await fetch('/reporter-workflow.json');
             const workflow = await response.json();
 
-            // Fetch the current per-instance webhook URL from server
-            const webhookRes = await authFetch(`/instances/${data.instance.id}/webhook-url`);
-            const { webhook_url: webhookUrl } = await webhookRes.json();
+            // Fetch sensitive download credentials (hmac_secret, base_url, webhook_url)
+            const credRes = await authFetch(`/instances/${data.instance.id}/download-credentials`);
+            const creds = await credRes.json();
 
             let jsonString = JSON.stringify(workflow, null, 2);
             jsonString = jsonString.replace(/YOUR_INSTANCE_ID/g, data.instance.id);
-            jsonString = jsonString.replace(/YOUR_HMAC_SECRET/g, data.instance.hmac_secret);
-            jsonString = jsonString.replace(/YOUR_WEBHOOK_URL/g, webhookUrl);
+            jsonString = jsonString.replace(/YOUR_HMAC_SECRET/g, creds.hmac_secret);
+            jsonString = jsonString.replace(/YOUR_SENTINEL_URL/g, creds.webhook_url);
+            jsonString = jsonString.replace(/YOUR_N8N_URL/g, creds.base_url || '');
 
             const blob = new Blob([jsonString], { type: 'application/json' });
             const url = URL.createObjectURL(blob);
@@ -553,7 +554,7 @@ function Modal({ title, onClose, children }: { title: string; onClose: () => voi
             <div className="card rounded-lg shadow-lg max-w-md w-full p-6">
                 <div className="flex justify-between items-center mb-4">
                     <h3 className="text-base font-semibold text-foreground">{title}</h3>
-                    <button onClick={onClose} className="text-muted-foreground hover:text-foreground"><X size={18} /></button>
+                    <button onClick={onClose} aria-label="Close" className="text-muted-foreground hover:text-foreground"><X size={18} /></button>
                 </div>
                 {children}
             </div>
@@ -568,7 +569,7 @@ function CopyField({ label, value }: { label: string; value: string }) {
             <label className="block text-xs text-muted-foreground mb-1">{label}</label>
             <div className="flex items-center gap-2 bg-secondary border border-border rounded-lg p-2.5">
                 <code className="text-xs font-mono text-foreground flex-1 truncate">{value}</code>
-                <button onClick={() => { navigator.clipboard.writeText(value); setCopied(true); setTimeout(() => setCopied(false), 2000); }} className="shrink-0 text-muted-foreground hover:text-foreground">
+                <button onClick={() => { navigator.clipboard.writeText(value); setCopied(true); setTimeout(() => setCopied(false), 2000); }} aria-label="Copy to clipboard" className="shrink-0 text-muted-foreground hover:text-foreground">
                     {copied ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
                 </button>
             </div>

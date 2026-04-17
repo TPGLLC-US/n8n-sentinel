@@ -73,27 +73,27 @@ export const login = async (req: Request, res: Response) => {
 
 // ─── POST /api/auth/refresh ─────────────────────────────────────────────
 
+export function buildRefreshUserQuery(): string {
+    return 'SELECT id, email FROM users WHERE id = $1 AND is_active = TRUE';
+}
+
 export const refresh = async (req: Request, res: Response) => {
     const { refreshToken } = req.body;
-    if (!refreshToken) {
-        return res.status(400).json({ error: 'Refresh token required' });
-    }
+    if (!refreshToken) return res.status(400).json({ error: 'Refresh token required' });
 
     try {
         const valid = await validateRefreshToken(refreshToken);
-        if (!valid) {
-            return res.status(401).json({ error: 'Invalid or expired refresh token' });
-        }
+        if (!valid) return res.status(401).json({ error: 'Invalid or expired refresh token' });
 
-        const result = await query('SELECT id, email FROM users WHERE id = $1', [valid.userId]);
+        const result = await query(buildRefreshUserQuery(), [valid.userId]);
         if (result.rows.length === 0) {
-            return res.status(401).json({ error: 'User not found' });
+            await revokeRefreshToken(refreshToken).catch(() => {});
+            return res.status(401).json({ error: 'User not found or inactive' });
         }
 
         const user = result.rows[0];
         const payload: TokenPayload = { userId: user.id, email: user.email, role: 'admin' };
         const accessToken = generateAccessToken(payload);
-
         res.json({ token: accessToken });
     } catch (error) {
         console.error('Refresh error:', error);

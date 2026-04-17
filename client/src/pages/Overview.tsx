@@ -404,7 +404,7 @@ export default function Overview() {
                     <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-primary/10 border border-primary/20 text-sm text-primary">
                         <Server size={14} />
                         <span className="font-medium">{selectedInstance.name}</span>
-                        <button onClick={() => setSelectedInstance(null)} className="ml-1 hover:bg-primary/20 rounded p-0.5 transition-colors"><X size={14} /></button>
+                        <button onClick={() => setSelectedInstance(null)} aria-label="Clear instance filter" className="ml-1 hover:bg-primary/20 rounded p-0.5 transition-colors"><X size={14} /></button>
                     </div>
                     <span className="text-xs text-muted-foreground">Charts filtered to this instance</span>
                 </div>
@@ -468,6 +468,7 @@ export default function Overview() {
                                         disabled={acknowledging === alert.id}
                                         className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-emerald-500/10 text-emerald-400 disabled:opacity-50"
                                         title="Acknowledge"
+                                        aria-label="Acknowledge alert"
                                     >
                                         {acknowledging === alert.id ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
                                     </button>

@@ -5,6 +5,7 @@ import {
     CheckCircle2, XCircle, CircleDot,
 } from 'lucide-react';
 import { authFetch } from '../lib/auth';
+import { formatDuration } from '../lib/format';
 import {
     useReactTable,
     getCoreRowModel,
@@ -45,13 +46,6 @@ function StatusBadge({ status }: { status: string }) {
         return <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-medium bg-blue-500/10 text-blue-400 border border-blue-500/20 animate-pulse">Running</span>;
     }
     return <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-medium bg-secondary text-muted-foreground border border-border">{status}</span>;
-}
-
-function formatDuration(ms: number | null): string {
-    if (!ms) return '-';
-    if (ms < 1000) return `${ms}ms`;
-    if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`;
-    return `${(ms / 60000).toFixed(1)}m`;
 }
 
 const columnHelper = createColumnHelper<ExecutionRow>();
@@ -261,10 +255,10 @@ export default function Executions() {
                                 <option key={size} value={size}>{size} / page</option>
                             ))}
                         </select>
-                        <button onClick={() => table.previousPage()} disabled={!table.getCanPreviousPage()} className="p-1.5 rounded hover:bg-accent disabled:opacity-30 disabled:cursor-not-allowed transition-colors duration-150">
+                        <button onClick={() => table.previousPage()} disabled={!table.getCanPreviousPage()} aria-label="Previous page" className="p-1.5 rounded hover:bg-accent disabled:opacity-30 disabled:cursor-not-allowed transition-colors duration-150">
                             <ChevronLeft size={16} />
                         </button>
-                        <button onClick={() => table.nextPage()} disabled={!table.getCanNextPage()} className="p-1.5 rounded hover:bg-accent disabled:opacity-30 disabled:cursor-not-allowed transition-colors duration-150">
+                        <button onClick={() => table.nextPage()} disabled={!table.getCanNextPage()} aria-label="Next page" className="p-1.5 rounded hover:bg-accent disabled:opacity-30 disabled:cursor-not-allowed transition-colors duration-150">
                             <ChevronRight size={16} />
                         </button>
                     </div>

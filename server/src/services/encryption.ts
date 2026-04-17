@@ -10,21 +10,20 @@ function getEncryptionKey(): Buffer {
     let key = process.env.ENCRYPTION_KEY;
 
     if (!key) {
-        // Fallback: derive from SESSION_SECRET or a default seed so dev doesn't hard-crash.
-        // In production, ENCRYPTION_KEY should always be set explicitly.
+        if (process.env.NODE_ENV === 'production') {
+            throw new Error('ENCRYPTION_KEY is required in production. Set it to a 32-byte hex string.');
+        }
         const fallbackSeed = process.env.SESSION_SECRET || 'n8n-sentinel-dev-encryption-seed';
         key = crypto.createHash('sha256').update(fallbackSeed).digest('hex');
         if (!_warnedAboutFallback) {
-            console.warn('[encryption] ENCRYPTION_KEY not set — using fallback derived from SESSION_SECRET. Set ENCRYPTION_KEY in production!');
+            console.warn('[encryption] ENCRYPTION_KEY not set — using dev fallback derived from SESSION_SECRET. Set ENCRYPTION_KEY in production!');
             _warnedAboutFallback = true;
         }
     }
 
-    // Key must be 32 bytes for aes-256. Accept hex (64 chars) or base64 (44 chars) or raw.
     if (key.length === 64 && /^[0-9a-f]+$/i.test(key)) {
         return Buffer.from(key, 'hex');
     }
-    // Derive a 32-byte key via SHA-256 hash of the provided string
     return crypto.createHash('sha256').update(key).digest();
 }
 

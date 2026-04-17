@@ -389,7 +389,7 @@ export default function TokenUsage() {
                 <div className="flex items-center gap-3 px-4 py-2 rounded-lg bg-primary/5 border border-primary/10">
                     <div className="flex items-center gap-1.5 text-sm font-medium text-primary">
                         <span>{selectedInstance.name}</span>
-                        <button onClick={() => setSelectedInstance(null)} className="ml-1 hover:bg-primary/20 rounded p-0.5 transition-colors"><X size={14} /></button>
+                        <button onClick={() => setSelectedInstance(null)} aria-label="Clear instance filter" className="ml-1 hover:bg-primary/20 rounded p-0.5 transition-colors"><X size={14} /></button>
                     </div>
                     <span className="text-xs text-muted-foreground">Charts filtered to this instance</span>
                 </div>
@@ -651,6 +651,7 @@ export default function TokenUsage() {
                         <button
                             onClick={() => table.previousPage()}
                             disabled={!table.getCanPreviousPage()}
+                            aria-label="Previous page"
                             className="p-1.5 rounded hover:bg-accent disabled:opacity-30 disabled:cursor-not-allowed transition-colors duration-150"
                         >
                             <ChevronLeft size={16} />
@@ -658,6 +659,7 @@ export default function TokenUsage() {
                         <button
                             onClick={() => table.nextPage()}
                             disabled={!table.getCanNextPage()}
+                            aria-label="Next page"
                             className="p-1.5 rounded hover:bg-accent disabled:opacity-30 disabled:cursor-not-allowed transition-colors duration-150"
                         >
                             <ChevronRight size={16} />

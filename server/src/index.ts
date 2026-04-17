@@ -5,7 +5,7 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { checkDatabaseHealth } from './db';
 import { getSessionSecret, seedAdminUser } from './lib/auth';
-import { loginLimiter } from './middleware/rate-limit';
+import { loginLimiter, refreshLimiter, logoutLimiter } from './middleware/rate-limit';
 
 dotenv.config(); // try CWD/.env
 dotenv.config({ path: path.resolve(process.cwd(), '..', '.env') }); // fallback: monorepo root
@@ -76,16 +76,16 @@ import modelsRouter from './routes/models';
 import settingsRouter from './routes/settings';
 import errorsRouter from './routes/errors';
 import reportsRouter from './routes/reports';
-import { checkHeartbeats } from './services/alerts';
 import { login, requireAuth, refresh, logoutHandler } from './middleware/session';
 import { validateIngestPath } from './middleware/auth';
 import { ensureModelsLoaded } from './services/models';
 import { startReportScheduler } from './services/report-scheduler';
 import { startDataRetention } from './services/data-retention';
+import { startScheduler, stopScheduler } from './services/scheduler';
 
 app.post('/api/login', loginLimiter, login);
-app.post('/api/auth/refresh', refresh);
-app.post('/api/auth/logout', logoutHandler);
+app.post('/api/auth/refresh', refreshLimiter, refresh);
+app.post('/api/auth/logout', logoutLimiter, logoutHandler);
 
 // Public Routes — Per-instance ingest paths (preferred)
 app.use('/:accountToken/:instanceToken/ingest', validateIngestPath, ingestRouter);
@@ -125,22 +125,32 @@ if (process.env.NODE_ENV === 'production') {
     });
 }
 
-// Scheduler
-setInterval(() => {
-    checkHeartbeats().catch(console.error);
-}, 60 * 1000); // Check every minute
+async function boot(): Promise<void> {
+    try { await seedAdminUser(); } catch (err) { console.error('[boot] seedAdminUser failed:', err); process.exit(1); }
+    try { await ensureModelsLoaded(); } catch (err) { console.error('[boot] ensureModelsLoaded failed:', err); }
+    try { await startReportScheduler(); } catch (err) { console.error('[boot] startReportScheduler failed:', err); }
+    try { startDataRetention(); } catch (err) { console.error('[boot] startDataRetention failed:', err); }
+}
 
-app.listen(port, () => {
+const server = app.listen(port, () => {
     console.log(`[server]: Server is running at http://localhost:${port}`);
-    // Seed admin user from env vars
-    seedAdminUser().catch(err => {
-        console.error('Failed to seed admin user:', err);
-        process.exit(1);
-    });
-    // Pre-warm models.dev cache
-    ensureModelsLoaded().catch(console.error);
-    // Start report scheduler
-    startReportScheduler().catch(console.error);
-    // Start data retention jobs
-    startDataRetention();
+    startScheduler();
+    boot();
 });
+
+function shutdown(signal: string): void {
+    console.log(`[server] ${signal} received, shutting down`);
+    stopScheduler();
+    server.close(() => {
+        console.log('[server] HTTP closed, exiting');
+        process.exit(0);
+    });
+    // Force-exit after 10s if close hangs
+    setTimeout(() => {
+        console.error('[server] forced exit after timeout');
+        process.exit(1);
+    }, 10_000).unref();
+}
+
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));
